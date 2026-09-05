@@ -1,0 +1,39 @@
+{
+  "summary": "P69B booking-fee-as-separate-payment feature + cash pricing sheet KPR-hide tested end-to-end. 8/8 backend pytest cases pass. Frontend flows verified for owner (booking-fee-panel with pay dialog, PDF buttons, deal-pricing-sheet with booking-fee-panel embedded, KPR-vs-cash toggling) and manager (pay button hidden with 'Pencatatan pembayaran oleh Keuangan.' hint). Setting gate on booking_fee.require_paid_before_booking verified (OFF permits book with unpaid, ON blocks with 'belum LUNAS' and passes after full pay). Cancel of unpaid deal closes invoice as expected.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/deals/reserve", "issue": "Response body of reserve does not include booking_fee_status/booking_fee_invoice_id — those fields are set on the deal by bf.create_invoice AFTER the local deal dict is returned. Callers must GET the deal to see them. Consider re-reading the deal (or updating the dict) before returning so the response matches the DB state."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BookingFeePanel", "issue": "Receipt PDF button called wrong endpoint `/ar/receipts/{id}/pdf` — the router prefix is `/finance/ar`. Fixed inline (changed to `/finance/ar/receipts/{id}/pdf`).", "selector": "[data-testid=booking-fee-receipt-pdf]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Deal pricing sheet — cash scheme hide-KPR", "issue": "Backend pricing_snapshot stored scheme.type = scheme.get('type') but payment_schemes documents only carry `kind` (e.g. cash_keras/cash_bertahap/kpr) — never `type`. Result: `pricing.scheme.type` was always null and DealPricingSheet's isCash check never triggered, so KPR box was shown for cash deals and cash-note was never shown. Fixed inline in quotation_engine.py line 188 to fallback to scheme.get('kind').", "affected_selectors": ["[data-testid=quotation-kpr-box]", "[data-testid=deal-pricing-cash-note]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_p69b_booking_fee.py", "/app/test_reports/pytest/p69b_results.xml"],
+  "action_items": [
+    "Consider re-fetching (or manually setting) booking_fee_status + booking_fee_invoice_id on the deal dict returned by POST /api/deals/reserve so the response reflects DB state (currently caller must issue an extra GET).",
+    "Verify the two applied fixes are appropriate long-term: (a) BookingFeePanel receipt PDF path changed from `/ar/receipts/{id}/pdf` to `/finance/ar/receipts/{id}/pdf`; (b) quotation_engine.pricing_snapshot now uses scheme.get('kind') as fallback for scheme.type. Alternative: normalise the DB (add `type` column to payment_schemes) or update DealPricingSheet.js to check `scheme.kind`.",
+    "Consider surfacing a `lead-deal-booking-fee-status` also on /customers?hub=deal Deals list (DealsListTab shows the label but has no data-testid on the pill)."
+  ],
+  "critical_code_review_comments": [
+    "quotation_engine.pricing_snapshot: schemes DB uses `kind` not `type`. Snapshot fell back to null, silently breaking every cash-vs-kpr UI decision that reads pricing.scheme.type. Fixed with kind fallback, but the two names should be reconciled once.",
+    "BookingFeePanel used a wrong AR receipts URL (missing /finance prefix) — receipt PDF was 404. Fixed. Same pattern is used correctly elsewhere in the codebase (ArPanel, DocumentIssueHub) — good grep target for future components.",
+    "sales_reserve.reserve returns a stale local dict — booking_fee_status is mutated on the DB by booking_fee.create_invoice but never reflected in the returned deal. Downstream code (and tests) relying on the response cannot see it without a re-fetch.",
+    "block_booking_reason correctly gates POST /deals/{id}/book on the setting, and pay/cancel state transitions are covered by tests. RBAC on booking-fee-router is well-scoped (finance:create for pay, deals:view for GETs, site denied)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p69b_booking_fee.py",
+    "/app/backend/quotation_engine.py",
+    "/app/frontend/src/components/sales/BookingFeePanel.js"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@sipro.co.id / manager@sipro.co.id / sales@sipro.co.id / finance@sipro.co.id / site@sipro.co.id — all Sipro#2026",
+  "seed_data_creation": "Test deals were created and cancelled cleanly. Setting booking_fee.require_paid_before_booking restored to OFF. Demo deal on A-03 for Bapak Rudi Hartono untouched. The one A-04 cancelled test deal on Agus Salim mentioned in the request remains ignored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_p69b_booking_fee.py — run with -n 0 (they share module state). Two fixes applied inline: (1) quotation_engine.py line 188 now falls back scheme.kind → scheme.type so DealPricingSheet's isCash works; (2) BookingFeePanel now hits /finance/ar/receipts/{id}/pdf. If further changes are made to payment_schemes or the pricing snapshot, re-verify cash pricing sheet hides quotation-kpr-box and shows deal-pricing-cash-note.",
+  "rca of the issue": "1) Receipt-PDF 404: BookingFeePanel used /ar/... not /finance/ar/... — off-by-a-prefix relative to ar_router (prefix `/finance/ar`). 2) KPR-hide never worked: pricing_snapshot stored `scheme.type = scheme.get('type')` but payment_scheme documents use `kind`. All DealPricingSheet cash-scheme UI depended on this being 'cash_keras' or 'cash_bertahap'."
+}

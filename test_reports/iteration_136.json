@@ -1,0 +1,42 @@
+{
+  "summary": "Uji Fase 89 (skor lead berbasis event terkonfigurasi, kupon bersasaran potongan, rapikan nomor telepon +62). Backend: 15/15 pytest lulus (tests/test_p89.py) — GET/PUT /api/lead-score/events (17 event sistem + bands + defaults), validasi kunci kustom tidak valid (400) & kunci ganda (400), POST /api/leads/{id}/score-events (+12 open_house di score_breakdown; event tak dikenal 400), GET /api/leads/{id}/score memuat custom_events, reset ke bawaan, rescore-all, RBAC sales 403 pada PUT events & POST normalize-phones, GET /api/master/phone-health (7 koleksi + pending/duplicate/invalid), POST /api/master/normalize-phones (08xx -> +62 terverifikasi di mongosh), serta kupon target dp/cost (cost tanpa komponen ditolak, target tak dikenal ditolak). Frontend: semua alur pada permintaan lulus — tab Skor Lead (17 baris, ubah poin first_contact=12 + simpan + persist setelah reload), tambah event kustom 'Hadir open house' -> baris leadscore-event-row-hadir_open_house dan simpan sukses, kartu skor lead (lead-score-log-select + log-btn -> toast 'Event Hadir open house dicatat. Skor: 65.' dan baris rincian '+10' bertambah), dialog kupon (pricing-rule-form-target + target-help 'Kupon ini dipotong dari komponen tersebut...', kupon UJI-DP-89 tersimpan dengan kolom Sasaran 'Uang muka / DP (termin pertama)'), Master Data > Kesehatan Data (master-phone-health, tombol nonaktif saat 0 pending; setelah disuntik 1 nomor 08xx tombol jadi 'Rapikan sekali jalan (1)' aktif -> klik -> toast '… dirapikan ke +62 …' -> hitungan kembali 0). Tidak ada error konsol/backend.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Pusat Konfigurasi > Harga & Promo > dialog Kupon baru",
+        "issues": ["Field 'Berlaku mulai/sampai' memakai date picker bawaan browser (placeholder mm/dd/yyyy, format US) alih-alih komponen kalender shadcn — tidak konsisten dengan UI bahasa Indonesia (bukan regresi Fase 89, sudah ada sebelumnya)"]
+      },
+      {
+        "screen": "Master Data > Kesehatan Data > kartu Format nomor telepon",
+        "issues": ["Tombol 'Rapikan sekali jalan (0)' saat nonaktif berwarna teal muda di atas teal — kontras teks rendah (minor, hanya state disabled)"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p89.py",
+    "/app/backend/tests/cleanup_p89.py",
+    "/app/test_reports/pytest/p89_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "phone_health() menghitung nomor yang setelah normalisasi bentrok sebagai 'duplicate', bukan 'pending' — perilaku benar, tapi UI hanya menampilkan tombol 'Rapikan (0)' sehingga admin tak punya jalan menyelesaikan baris duplicate/invalid; pertimbangkan aksi lanjutan (mis. tautan ke daftar baris bentrok).",
+    "PUT /api/lead-score/events menerima daftar penuh (replace-all); klien wajib mengirim semua event sistem, kalau tidak konfigurasi lama tertimpa. merge_events() menyelamatkan event sistem yang hilang, tapi poin kustomisasinya hilang — dokumentasikan/atau pakai patch per event."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p89.py",
+    "/app/backend/tests/cleanup_p89.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Kupon UJI-DP-89* (5 buah) dibuat lalu dinonaktifkan lewat tests/cleanup_p89.py. Event skor lead dikembalikan ke bawaan (verified 17 sistem, 0 kustom). Nomor telepon lead uji dinormalisasi ke +62 (tidak ada sisa data 08xx). Aktivitas 'score_event' pada lead d4ba9e6c tetap ada (jejak audit, tidak bisa dihapus lewat API).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 (juga sales@sipro.co.id untuk uji 403)",
+  "context_for_next_testing_agent": "Fase 89 lulus penuh (iteration_136). Regresi: jalankan `cd /app/backend && python -m pytest tests/test_p89.py`. Catatan penting: nomor uji untuk phone-health harus acak — bila bentuk +62-nya sudah ada di leads, baris dihitung 'duplicate' bukan 'pending' (sempat bikin false-negative). Kupon tak punya endpoint DELETE; pakai PUT active=false (tests/cleanup_p89.py). Endpoint kupon = /api/pricing/coupons (bukan /api/pricing-rules). Sub-tab kupon: data-testid pricing-sub-coupon; halaman Master Data = /admin/master-data.",
+  "rca_of_the_issue": "Tidak ada bug produk yang ditemukan. Dua kegagalan uji awal murni masalah skrip/data uji: (1) nomor '08129998877' yang saya suntik ternyata sudah punya kembaran '+628129998877' di koleksi leads sehingga phone-health melaporkannya sebagai duplicate (pending=0) — diperbaiki dengan nomor acak; (2) poin open_house terbaca 24 karena event sudah tercatat dua kali dari run sebelumnya — uji diubah menjadi delta (+12)."
+}

@@ -1,0 +1,28 @@
+{
+  "summary": "Fase 84 (Kas Kecil Imprest) frontend E2E diuji lengkap di /cash-bank?tab=petty. Semua alur berhasil: (1) Panel & 2 kartu imprest muncul, sum '3 pengeluaran · tercatat Rp 2.000.000'. (2) Dialog pengeluaran — Submit disabled sebelum bukti dilampirkan (require_proof), setelah upload PNG/txt Submit aktif; POST /petty-cash/expenses sukses → KK/2026/0004 · JV/2026/00061, baris baru berstatus 'Tercatat' dengan paperclip. (3) Filter status 'Dibatalkan' → 2 baris/Rp 0, 'Tercatat' → 2/Rp 2.000.000. (4) SoD: finance TIDAK melihat tombol Batalkan; finlead melihat & void KK/2026/0004 dengan reason 'uji e2e batal' (window.prompt via page.on('dialog')) → jurnal balik JV/2026/00062, saldo Kas Besar naik dari 18.425.000 → 18.500.000. (5) Master Rekening: dialog kas baru — pilih 'Kas Tunai / Kas Kecil' memunculkan field imprest; buat 'Kas E2E wa3t' saldo 500.000 imprest 2.000.000 → sukses (akun GL 1-1104). Kartu muncul di tab Kas Kecil berstatus 'Perlu diisi' (500rb < ambang 600rb=30%×2jt) dengan tombol 'Ajukan pengisian Rp 1.500.000'. Klik → TRF/2026/0005 diajukan; badge 'Pengisian menunggu'. Finlead approve via API → status posted, JV/2026/00064. Backend smoke: sales 403 (imprest & expenses), no file_ids → 400 'Bukti (nota/kuitansi) wajib…', amount 5jt (>1jt) → 400 'melebihi batas satu pengeluaran kas kecil Rp 1,000,000'. Tidak ditemukan bug fungsional pada fase ini.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dev overlay", "issues": ["Peringatan 'ResizeObserver loop completed with undelivered notifications' menampilkan Uncaught runtime errors overlay penuh layar dari react-dev-utils setelah interaksi Select Radix (mis. setelah submit dialog atau membuka Select filter). Bukan bug fungsional (dapat di-dismiss dengan Esc) dan hanya di mode dev, namun dapat menghalangi klik pengguna & merusak alur otomasi. Pertimbangkan mem-patch overlay agar mengabaikan pesan spesifik ini (banyak referensi solusi via error handler pada window.addEventListener('error'))."]},
+      {"screen": "Kas & Bank — Kas Kecil (kartu imprest)", "issues": ["Badge 'Melebihi batas' pada Kas Besar (saldo 18,5jt > batas bawaan 5jt) — sesuai catatan main agent memang informatif; namun tombol 'Ajukan pengisian' tidak muncul, sedangkan 'Perlu diisi' pada Kas Kecil Site (saldo 0) juga tidak menampilkan tombol karena sudah ada pengisian menunggu (TRF/2026/0002). Perilaku ini benar; hanya perlu tooltip singkat pada badge untuk menjelaskan."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p84_petty_expense.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PettyExpenseDialog.js:74 memakai `onChange={(e) => set('amount', e.target.value)}` — sudah benar sesuai kontrak RupiahInput (tidak seperti bug Fase 82 di TransferDialog/AccountDialog).",
+    "PettyExpensePanel.load() memanggil /petty-cash/imprest & /petty-cash/expenses berbarengan pada setiap perubahan filter. Endpoint imprest tidak berubah oleh filter kas/status — dapat di-split agar hanya expenses yang di-refetch saat filter berubah untuk mengurangi beban.",
+    "voidRow memakai window.prompt native — konsisten dengan panel kas & bank lain, tapi tidak dapat divalidasi min-length client-side; server mengembalikan 400 bila <5 karakter. Untuk UX yang lebih rapi pertimbangkan Dialog custom (opsional).",
+    "Dev overlay ResizeObserver perlu di-suppress agar tidak menutupi UI pada mode dev (lihat design_issues)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (smoke 3/3: 403 sales, 400 no-file, 400 over-limit)", "frontend": "100% (6/6 alur: panel, create expense berbukti, filter status, SoD void, buat kas + field imprest, ajukan pengisian + approve)"},
+  "test_credentials": "finance@sipro.co.id, finlead@sipro.co.id, sales@sipro.co.id — password Sipro#2026 (valid).",
+  "seed_data_creation": "Rekening 'Kas E2E wa3t' (KAS-E2E-wa3t / GL 1-1104) — sudah DINONAKTIFKAN via PUT /api/cash-bank/accounts/{id} {is_active:false}. Pengeluaran KK/2026/0004 (Rp 75.000, Kas Besar) sudah divoid oleh finlead (JV/2026/00062). Transfer TRF/2026/0005 pengisian kas kecil Rp 1.500.000 di-approve (JV/2026/00064) — namun kas tujuan sudah nonaktif; tidak berpengaruh ke total kas & bank operasional.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Alur Fase 84 lulus penuh. Bila menguji ulang, cukup smoke: (a) POST /petty-cash/expenses tanpa file_ids → 400, (b) buat kas Kas Tunai baru dengan imprest & lihat kartu 'Perlu diisi' bila saldo < 30% imprest, (c) klik replenish → TRF pending, (d) approve oleh finlead → journal_no muncul. Perhatikan overlay ResizeObserver saat mengklik Select Radix di dev — patch: `document.querySelectorAll('#webpack-dev-server-client-overlay').forEach(o=>o.remove())` sebelum click, atau tekan Escape.",
+  "rca_of_the_issue": ""
+}

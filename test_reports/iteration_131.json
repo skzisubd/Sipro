@@ -1,0 +1,30 @@
+{
+  "summary": "Fase 81 frontend E2E (Playwright, superadmin) + 5 API support tests. Diuji: editor RAB tipe + riwayat versi/pulihkan, salin RAB dari tipe lain × faktor, impor/unduh template Excel, kendali fasum di Ringkasan & HPP, hint & guard termin fasum di dialog Ajukan Termin, regresi tab Fasum/Umum/Item RAB lama dan dialog SPK dari RAB. Semua skenario yang diminta LULUS; tidak ada error console selain warning hydration <option> yang sudah ada sebelumnya.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog RAB — rab-tools-bar", "issues": ["Input impor memakai <input type=file> bawaan browser ('Choose File / No file chosen'), tidak konsisten dengan design system (Button/Input shadcn) di dialog yang sama", "Tombol 'Salin ke editor' otomatis disabled bila belum ada tipe lain yang punya RAB — tidak ada teks penjelas kenapa disabled (hanya select placeholder)"]},
+      {"screen": "Console (pre-existing)", "issues": ["React hydration warning: <span> cannot be a child of <option> pada RabTemplateTools.js:59-60 (option memakai prop label + children). Bisa dihilangkan dengan hanya memakai children tanpa label atau sebaliknya."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p81_frontend_support.py", "/app/backend/tests/seed_p81_ui_fasum.py"],
+  "action_items": [
+    "Opsional (kosmetik): ganti <input type=file> impor RAB dengan tombol bergaya design system",
+    "Opsional: bersihkan warning hydration <option> di RabTemplateTools.js (label + children)"
+  ],
+  "critical_code_review_comments": [
+    "RabTemplateTools: sources difilter items>0 sehingga tipe tanpa RAB tidak bisa dipilih sebagai sumber — perilaku benar, tapi tombol disabled tanpa hint; pertimbangkan tooltip.",
+    "RabVersionHistory: rows[0] diasumsikan versi aktif (bergantung urutan backend). Aman saat ini (backend mengurutkan desc + flag current), tapi sebaiknya cari v.current alih-alih index 0.",
+    "Import banner & toast tidak mengunci Simpan; user bisa menyimpan hasil impor/salin tanpa review — sudah dimitigasi banner 'Belum tersimpan' + tombol batalkan (OK)."
+  ],
+  "updated_files": ["/app/backend/tests/test_p81_frontend_support.py", "/app/backend/tests/seed_p81_ui_fasum.py"],
+  "success_rate": {"backend": "100% (5/5 support tests)", "frontend": "100% (7/7 skenario Fase 81)"},
+  "seed_data_creation": "TIPE-36-72: disimpan 2 versi baru (v7 Rp100jt 'UJI81 versi 1', v8 Rp120jt 'harga naik') lalu dipulihkan ke v7 → aktif v9 Rp 100.000.000 (sebelumnya v6 Rp 111.000.000). TIPE-45-90: RAB tersimpan hasil salin dari TIPE-36-72 × 1.5 = Rp 150.000.000 (sebelumnya belum ada RAB). TIPE-54-105: hanya pratinjau impor, TIDAK disimpan. Untuk uji guard fasum dibuat via API: fase 'TEST81UI_Fase jalan 1096' (progres 35%), BoQ item TEST81UI-1096 (fasum/jalan), SPK/2026/0006 'TEST81UI_SPK jalan 1096' (aktif, lump-sum fasum Rp 10.000.000). Tidak ada data seed yang dihapus.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Hasil verifikasi Fase 81 (semua lulus): (1) Riwayat versi — v8 AKTIF dengan delta '+Rp 20.000.000', tombol Pulihkan hanya di versi lama, restore v7 → toast 'RAB dipulihkan ke v7.', total editor kembali Rp 100.000.000, riwayat jadi 9 baris (v9 catatan 'Pulihkan v7'), badge 'v8/v9' tampil di kolom RAB/unit RabTypePanel. (2) Salin: option 'TIPE-36-72 · Tipe 36/72 (Rp 100.000.000)', faktor 1.5 → toast 'RAB TIPE-36-72 disalin ke editor (1 baris).', banner 'Disalin dari TIPE-36-72 × 1.5 — 1 baris, total Rp 150.000.000. Belum tersimpan.', 'Batalkan, muat RAB tersimpan' mengembalikan editor ke RAB tersimpan (0 baris) & banner hilang; setelah Simpan baris TIPE-45-90 = Rp 150.000.000. (3) Impor: download event OK dengan nama SIPRO_Template_RAB_Tipe.xlsx; unggah balik → toast '1 baris dimuat ke editor.', banner 'Diimpor dari …', baris 'Struktur & pondasi' Rp 150.000.000. Penolakan .csv diuji via API POST /api/rab/templates/unit_type/TIPE-36-72/import → 400 'Berkas harus .xlsx' (UI memblokir lewat accept). (4) Ringkasan & HPP: rab-fasum-control '2 SPK' — SPK/2026/0004 (Drainase, batas 75%, diajukan 40% TRM/2026/0002, data-over=0, pill 'sesuai · sisa 75%') dan SPK/2026/0006 (Jalan, batas 35%, data-over=0). (5) Dialog Ajukan Termin: pilih SPK/2026/0006 → claim-fasum-cap data-cap=35, teks '… → batas 35%'; pct 90 → kelas border-rose; klik Ajukan → toast error 'Termin fasum tidak boleh melampaui progres fase konstruksi: …' (HTTP 400); pct 30 → kembali sky. (6) Regresi: tab Fasum (3 baris), Umum (0 baris, memang Rp 0), Item RAB lama, dan dialog spk-rab-dialog (tombol spk-from-rab-btn ada di tab 'SPK (Perintah Kerja)', bukan tab default) semua terbuka tanpa error. Endpoint ringkasan yang benar = GET /api/rab/projects/{pid}/summary (bukan /api/rab/summary).",
+  "rca_of_the_issue": "Tidak ada defect fungsional ditemukan pada Fase 81. Catatan: warning hydration <option> berasal dari pemakaian prop label bersamaan dengan children pada elemen <option> (RabTemplateTools/RabTemplateDialog) — sudah ada sejak fase sebelumnya dan tidak memengaruhi fungsionalitas."
+}

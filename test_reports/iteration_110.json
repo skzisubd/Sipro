@@ -1,0 +1,41 @@
+{
+  "summary": "Fase 110 verification of 3 items: (1) WA template variable substitution (lead WA route, appointment-date fill, Inbox route), (2) manual WA logging with photo proof closing a Work Hub task via task_id, (3) CreateTaskDialog jobdesk+lead selection with backend validation. New pytest suite /app/backend/tests/test_p110_wa_vars_tasks.py (12 cases) + regression /app/backend/tests/test_wa_manual_p29c.py (10 cases) => 21 passed / 1 failed. Full frontend E2E through the public URL: create task with jobdesk SM-10 + real lead, WA-manual block in TaskDetailSheet (disabled-state gating, PNG upload, task closed done/approved with note+photo proof), plus regressions (non-lead task Ajukan Hasil, lead profile Percakapan WA panel). Only defect found: unknown jobdesk_code is NOT rejected by POST /api/work/tasks (phantom jobdesk leaks into the task record and UI).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/work/tasks",
+        "issue": "jobdesk_code validation is ineffective: expected 400 for unknown code, got 200. jobdesk_code='XX-99' created a task with jobdesk_code='XX-99', division=null, type coerced to 'todo', proof_kind='note', verify_mode='none'. Root cause: workhub.jobdesk() calls jobdesk_catalog.defaults(code) which ALWAYS returns a dict (BY_CODE.get(code) or {}) so `if not jd` in work_router.create_task never fires. This is exactly the 'custom value instead of choosing from field' bug the round was meant to fix — the phantom jobdesk is visible in the UI (task row shows 'To-do · XX-99', TaskDetailSheet header 'XX-99 · - ·', Sumber tugas '—'). Fix: make workhub.jobdesk() return None when code not in cat.BY_CODE (or validate against cat.BY_CODE in create_task).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p110_wa_vars_tasks.py",
+    "/app/backend/tests/test_wa_manual_p29c.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Reject unknown jobdesk_code in POST /api/work/tasks (workhub.jobdesk should return None for codes absent from jobdesk_catalog.BY_CODE); consider cleaning up existing tasks with jobdesk_code not in catalog."
+  ],
+  "critical_code_review_comments": [
+    "workhub.jobdesk(org, code) never returns falsy — every caller that relies on `if not jd` for validation is silently a no-op. Guard at the catalog level: `if code not in cat.BY_CODE: return None`.",
+    "engine.wa_template_vars only supplies name/nama/date; any future placeholder in a seeded template would still be sent raw. Consider a final sweep that replaces leftover {{...}} with a neutral fallback before persisting the message.",
+    "GET /api/work/tasks/{id} does not exist, so tests/UI must page the list to verify one task; a single-task GET would simplify verification (test had to filter with status=done because the list defaults to OPEN_STATES)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p110_wa_vars_tasks.py"
+  ],
+  "success_rate": {"backend": "95% (21/22 assertions-suites passed)", "frontend": "100% (all tested flows passed)"},
+  "seed_data_creation": "Test leads TEST_P110_* / TEST_WA_Manual (+62812…) with an appointment (TEST_P110 Survey, +3 days), tasks 'TEST_P110 follow up lead', 'TEST_P110 jobdesk palsu' (phantom XX-99), 'TEST_UI_204180 follow up WA' (closed via WA manual), uploaded 1px PNG proofs.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Verified PASSING: template send fills {{nama}}/{{name}} + fallback '(waktu akan dikonfirmasi)'; after POST /api/appointments (lead_id,title,scheduled_at,type,location) the appointment_reminder body renders e.g. 'Kamis, 3 September 2026 pukul HH.MM WIB' with no raw braces; Inbox POST /api/inbox/{conv_id}/messages with template_code also substitutes; POST /api/work/tasks with SM-10 + real lead inherits proof_kind/verify_mode/division and auto SLA due_date; related_entity fake id → 404, unknown type → 400, type without id → 400; wa/manual with task_id closes task done/approved/verified_by=system with note+photo proof, closed task → 400 'sudah ditutup', fake/other-lead task → 404; wa/manual without task_id regression 10/10. Frontend verified: work-create-task dialog jobdesk select (13 options incl. Ad-hoc + SM-01..SM-10) prefills title/type/priority and shows 'Mengikuti aturan jobdesk', lead select lists 80 real leads, submit creates task with toast; TaskDetailSheet amber WA block gating + upload + close works; non-lead task has no amber block and Ajukan Hasil still works. ONLY open defect: unknown jobdesk_code accepted (see backend_issues).",
+  "rca_of_the_issue": "jobdesk_catalog.defaults(code) builds a dict for ANY string (BY_CODE.get(code) or {}), so workhub.jobdesk() returns a truthy 'default' jobdesk even for codes not in the catalog; work_router.create_task's `if not jd: raise 400` therefore never triggers and free-text jobdesk codes are persisted with null division/title. Reproduce: POST /api/work/tasks {title:'x', type:'follow_up', priority:'medium', jobdesk_code:'XX-99'} → 200 with jobdesk_code 'XX-99'. Mitigation: return None from jobdesk() when code not in cat.BY_CODE."
+}

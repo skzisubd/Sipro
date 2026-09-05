@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="18" time="3.152" timestamp="2026-09-04T14:06:21.291396+00:00" hostname="agent-env-b891fd8d-2ce2-4308-b7fd-ba218dd21cb6"><testcase classname="tests.test_p91.TestDocHistory" name="test_stages" time="0.774" /><testcase classname="tests.test_p91.TestDocHistory" name="test_bast_blocked_reason" time="0.000" /><testcase classname="tests.test_p91.TestDocHistory" name="test_spr_stage" time="0.000" /><testcase classname="tests.test_p91.TestDocHistory" name="test_lead_history_same" time="0.104" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[ar_outstanding]" time="0.975" /><testcase classname="tests.test_p91.TestDocHistory" name="test_bad_entity_type" time="0.094" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[ar_overdue]" time="0.425" /><testcase classname="tests.test_p91.TestDocHistory" name="test_sales_can_read_lead" time="0.473" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[ap_outstanding]" time="0.167" /><testcase classname="tests.test_p91.TestPdfs" name="test_all_pdf_urls" time="0.813"><failure message="AssertionError: ['booking/Invoice booking fee /booking-fee/deals/76ee24d3-7360-475e-a538-4422d5035879/invoice/pdf -&gt; 404 application/json {&quot;detail&quot;:&quot;Tagihan booking fee tidak ada.&quot;}']&#10;assert not ['booking/Invoice booking fee /booking-fee/deals/76ee24d3-7360-475e-a538-4422d5035879/invoice/pdf -&gt; 404 application/json {&quot;detail&quot;:&quot;Tagihan booking fee tidak ada.&quot;}']">self = &lt;test_p91.TestPdfs object at 0xf888ab9f0a90&gt;
+sa = &lt;requests.sessions.Session object at 0xf888b06c7450&gt;
+cust_history = {'entity_type': 'customer', 'entity_id': '7cb72a7c-84bf-4467-907e-33b06b7c8a15', 'deals': [{'deal_id': '76ee24d3-7360-...t_code': 'A-01', 'deal_status': 'booked', 'project_id': 'cb18f908-c1fb-4860-9e7c-657619d8dff3', ...}], 'total_docs': 6}
+
+    def test_all_pdf_urls(self, sa, cust_history):
+        urls = []
+        for d in cust_history["deals"]:
+            for s in d["stages"]:
+                for doc in s["docs"]:
+                    if doc.get("pdf_url"):
+                        urls.append((s["key"], doc["label"], doc["pdf_url"]))
+        assert urls, "no pdf_url found in doc history"
+        failures = []
+        for stage, label, u in urls:
+            r = sa.get(f"{API}{u}", timeout=60)
+            ct = r.headers.get("content-type", "")
+            if r.status_code != 200 or "application/pdf" not in ct:
+                failures.append(f"{stage}/{label} {u} -&gt; {r.status_code} {ct} {r.text[:120] if r.status_code!=200 else ''}")
+&gt;       assert not failures, failures
+E       AssertionError: ['booking/Invoice booking fee /booking-fee/deals/76ee24d3-7360-475e-a538-4422d5035879/invoice/pdf -&gt; 404 application/json {"detail":"Tagihan booking fee tidak ada."}']
+E       assert not ['booking/Invoice booking fee /booking-fee/deals/76ee24d3-7360-475e-a538-4422d5035879/invoice/pdf -&gt; 404 application/json {"detail":"Tagihan booking fee tidak ada."}']
+
+tests/test_p91.py:150: AssertionError</failure></testcase><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[ap_pending]" time="0.123" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[contract_liability]" time="0.166" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[customer_deposits]" time="0.096" /><testcase classname="tests.test_p91.TestDrilldown" name="test_keys[revenue_recognized]" time="0.123" /><testcase classname="tests.test_p91.TestDrilldown" name="test_ar_bucket" time="0.143" /><testcase classname="tests.test_p91.TestDrilldown" name="test_ap_bucket_encoded" time="0.111" /><testcase classname="tests.test_p91.TestDrilldown" name="test_totals_match_summary" time="0.381" /><testcase classname="tests.test_p91.TestDrilldown" name="test_unknown_key_404" time="0.079" /></testsuite></testsuites>

@@ -1,0 +1,36 @@
+{
+  "summary": "Fase 91 tested end-to-end. Backend: 18 pytest cases in /app/backend/tests/test_p91.py (finance drilldown 7 keys + ar_bucket/ap_bucket incl. URL-encoded '>90', totals vs /api/finance/summary, unknown key 404; doc-history customer & lead incl. 6 stages, BAST block reason, SPR/2026/0001, entity_type 400, sales RBAC; PDF download of every pdf_url returned by doc-history) → 17 passed, 1 failed (booking-fee invoice PDF 404). Frontend: combined Piutang/Utang tabs + all legacy ?tab= mappings, dashboard KPI drilldown dialogs + row navigation to filtered AR table, deposits empty state + open-all, aging bucket dialog, recharts aging chart, Collections row→ArDetailSheet (+stopPropagation on Ingatkan/Denda), .col-actions striping/hover fix, Dokumen Terbit tab on customer & lead (6 stages, docs, PDF, BAST disabled+reason, receipt action nav, SPR_KPR quick issue) and empty state for lead without deal — all working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/booking-fee/deals/{deal_id}/invoice/pdf (link exposed by GET /api/doc-history/customer/{id})", "issue": "doc-history stage 'booking' selalu menyertakan pdf_url invoice booking fee bila deal.booking_fee terisi, padahal record invoice booking fee tidak ada (deal 76ee24d3… unit A-01, booking_fee 5.000.000) → PDF 404 {'detail':'Tagihan booking fee tidak ada.'} (UI menampilkan toast 'PDF belum tersedia untuk dokumen ini.'). Sebaiknya doc_history.py hanya set pdf_url bila invoice booking fee benar-benar ada, atau endpoint PDF di-generate dari deal.booking_fee."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IssuedDocsTab / ActionButton", "issue": "data-testid `issued-docs-action-<key>` dipasang pada <div> pembungkus, bukan pada <button>; automated check `is_disabled()` pada testid gagal (harus turun ke child button). Tombol sendiri benar (disabled=true untuk BAST).", "selector": "[data-testid=\"issued-docs-action-bast\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard Keuangan · dialog aging bucket", "issues": ["Judul dialog memakai key bucket mentah: 'Aging piutang · 1-30' (spec/UI label memakai '1–30 hari'); label bucket '>90' juga tampil mentah"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p91.py", "/app/test_reports/pytest/pytest_p91.xml"],
+  "action_items": [
+    "doc_history.py: jangan expose pdf_url booking fee bila record invoice booking fee tidak ada (atau buat endpoint PDF fallback dari deal.booking_fee) — saat ini 1 dari 5 tombol PDF di tab Dokumen Terbit gagal (404).",
+    "Opsional: pindahkan data-testid issued-docs-action-<key> ke elemen <button> agar state disabled bisa diuji langsung.",
+    "Opsional: gunakan label manusiawi untuk judul drilldown bucket ('1–30 hari', '> 90 hari')."
+  ],
+  "critical_code_review_comments": [
+    "finance_drilldown.drilldown(): title bucket dibuat dari key mentah; sebaiknya dipetakan ke label yang sama dengan UI AgingBuckets.",
+    "doc_history._deal_history(): pdf_url disusun tanpa verifikasi keberadaan sumber dokumen (booking fee invoice) — pola ini bisa menghasilkan link mati untuk tahap lain juga bila record induk hilang."
+  ],
+  "updated_files": ["/app/backend/tests/test_p91.py"],
+  "success_rate": {"backend": "94% (17/18)", "frontend": "100% flows verified (2 catatan minor)"},
+  "seed_data_creation": "Tidak ada seed baru. Aksi cepat 'Terbitkan Surat Pesanan Rumah — KPR' dijalankan sekali → dokumen draft id 5d08152b-fe3c-4a64-aa25-f9593f00b378, nomor 0001/SPR-KPR/CAA/IX/2026 (status draft, template SPR_KPR) dibiarkan.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026, sales@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Customer 'Ibu Dewi Kartika' id=7cb72a7c-84bf-4467-907e-33b06b7c8a15, lead_id=da96154b-d88a-41c6-b947-0513a7c51c44, deal A-01 id=76ee24d3-7360-475e-a538-4422d5035879. Lead tanpa deal untuk empty state: b57f2e02-b788-4b6d-9774-75337a2c235a (Bapak Rudi Hartono). Sub-tab 'Keringanan Denda' memakai testid lama P59.waiverTabReport (bukan finance-tab-waivers). Aksi SPR_KPR tetap enabled setelah terbit dengan reason 'Sudah terbit 1× — terbitkan ulang hanya bila ada revisi.' (by design docgen.applicable). Playwright: sesi tidak persisten antar run — login ulang tiap script. Regression: pytest /app/backend/tests/test_p91.py.",
+  "rca_of_the_issue": "Booking-fee PDF 404: doc_history.py baris ~59-61 menambahkan doc 'booking_invoice' dengan pdf_url /booking-fee/deals/{id}/invoice/pdf hanya berdasarkan field deal.booking_fee, sementara routers/booking_fee_router.invoice_pdf memerlukan record invoice (bf.get_invoice) yang untuk deal seed A-01 tidak ada (0 dokumen di koleksi invoice booking fee) → 404. Frontend menangani gagal dengan toast, jadi bukan crash."
+}

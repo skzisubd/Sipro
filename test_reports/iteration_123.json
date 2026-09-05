@@ -1,0 +1,43 @@
+{
+  "summary": "Fase 73 Studio Site Plan diuji penuh (backend + frontend/UI). Backend: 6/6 tes lama (test_p73_studio_pdf.py 2, test_p72_studio.py 4) lulus; ditambah test_p73_extra.py (PNG tetap source='image', roundtrip titik + hapus bentuk) 2 lulus, 1 xfail terdokumentasi (pdf_page di luar rentang tidak di-clamp). Frontend: edit titik poligon (drag vertex) + Undo tombol & Ctrl+Z, toggle warna pemetaan/status, legenda berhitung, ekspor PNG (unduhan valid 2400x1600, 118 KB), unggah PDF 2 halaman dengan pilihan halaman, slider opacity, lepas latar, dan alur proyek baru (PDF -> gambar 2 poligon -> Ctrl+Z -> hapus bentuk -> Undo memulihkan) semuanya bekerja. Tanpa error konsol merah. Satu bug data/legenda ditemukan: status unit 'handed_over' tidak tercakup di SALES_ORDER/SALES_COLORS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/site-plan-studio/{pid}/background", "issue": "page=9 pada PDF 2 halaman: render di-clamp ke halaman terakhir, tetapi metadata disimpan apa adanya (pdf_page=9, filename '...-hal9.png') sehingga indikator toolbar bisa menampilkan '9/2' dan toast 'Halaman 9/2'. Sebaiknya clamp page ke [1, page_count] sebelum disimpan (atau balas 400)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StudioLegend / exportPng.lotStyle (mode status)", "issue": "Status unit 'handed_over' (Serah Terima) tidak ada di SALES_ORDER/SALES_COLORS. Pada proyek seed (11 kavling: 7 available, 2 booked, 1 sold, 1 handed_over) jumlah legenda hanya 10 (Tersedia 7 + Booking 2 + Terjual 1) padahal ada 11 kavling, dan kavling handed_over diwarnai HIJAU seperti 'Tersedia' (fallback SALES_COLORS.available) — menyesatkan pada brosur/WA. Tambah kategori 'Serah Terima' (atau gabung ke Terjual) + kategori 'Lainnya' agar total legenda selalu = jumlah kavling.", "selector": "[data-testid=\"studio-legend\"]", "priority": "HIGH"},
+      {"component": "StudioToolbar (proyek tanpa peta)", "issue": "Pada proyek kosong (belum ada peta/latar) tombol alat 'Gambar kavling' & 'Berurutan' tetap aktif meski kanvas belum dirender (hanya empty-state), sehingga klik tidak berefek. Sebaiknya nonaktifkan alat kanvas saat !plan.", "selector": "[data-testid=\"studio-tool-draw\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Studio toolbar", "issues": ["Toolbar sudah padat (2 baris pada 1920px) — input 'hal. PDF' + indikator halaman + slider latar berdesakan di antara tombol; pertimbangkan grup 'Latar' dalam popover.", "colorMode tidak dipertahankan setelah reload halaman (selalu kembali ke 'pemetaan') — minor, tidak diminta."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p73_studio_pdf.py",
+    "/app/backend/tests/test_p72_studio.py",
+    "/app/backend/tests/test_p73_extra.py",
+    "/app/test_reports/pytest/p73_results.xml"
+  ],
+  "action_items": [
+    "Tambahkan penanganan status unit 'handed_over' di planStyles (SALES_COLORS/SALES_ORDER) + StudioLegend agar hitungan legenda = jumlah kavling dan warnanya tidak sama dengan 'Tersedia'.",
+    "Clamp nilai page ke rentang halaman PDF di set_background (metadata pdf_page & nama berkas) supaya indikator tidak menampilkan '9/2'.",
+    "Opsional: nonaktifkan alat 'Gambar kavling'/'Berurutan' saat proyek belum punya peta/latar."
+  ],
+  "critical_code_review_comments": [
+    "exportPng.lotStyle fallback `SALES_COLORS[unit.status] || SALES_COLORS.available` menyembunyikan status tak dikenal sebagai 'tersedia' — gunakan kategori 'lainnya' yang eksplisit agar warna ekspor tidak salah arti.",
+    "useStudio.undo untuk tipe 'restore' membuat bentuk baru via POST sehingga shape_id berubah; entri undo lain yang menyimpan sid lama (mis. 'points') akan menunjuk bentuk yang sudah hilang → undo berikutnya bisa gagal (toast error). Pertimbangkan membersihkan/memetakan ulang stack setelah restore.",
+    "set_background menyimpan pdf_page dari input tanpa validasi terhadap doc.page_count (pdf_to_png sudah clamp) — sumber ketidakcocokan metadata."
+  ],
+  "updated_files": ["/app/backend/tests/test_p73_extra.py"],
+  "success_rate": {"backend": "100% (8/8 assert aktif; 1 xfail terdokumentasi)", "frontend": "95% (semua alur F73 lulus; 1 bug legenda/warna status)"},
+  "seed_data_creation": "Proyek uji 'Uji Studio F73' (8cb75d3d-d8d4-4cc7-b1c5-75cbe7affffe) dibuat untuk alur kosong→PDF→gambar; peta-nya sudah dihapus (DELETE /api/site-plan/{pid}/plan). DELETE /api/projects/{id} mengembalikan 405 sehingga proyek masih ada. Latar PDF proyek seed 4438bb73 dipasang ulang (PDF 2 halaman, halaman 1, 3000x2000). Proyek uji backend: 'Uji Studio PDF <tag>', 'Uji Studio Extra <tag>'.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Semua fitur F73 (vertex drag+undo/Ctrl+Z, PDF→latar dengan pilihan halaman, warna status + legenda, ekspor PNG) sudah terverifikasi di /site-plan/studio/4438bb73-9d3c-41fa-a084-311885c08e4d. Untuk unduhan gunakan page.expect_download (berjalan baik). PDF uji 2 halaman: /tmp/uji_2hal.pdf (skrip pembuat /tmp/mkpdf.py). Sisa bug: status 'handed_over' tidak ada di legenda/warna status.",
+  "rca_of_the_issue": "Legenda & pewarnaan mode status memakai SALES_ORDER/SALES_COLORS yang hanya memuat 6 status (available, reserved, booked, ppjb, akad, sold). Unit seed memiliki status 'handed_over' sehingga (a) tidak dihitung di kategori mana pun (total legenda 10 vs 11 kavling) dan (b) lotStyle mengembalikan warna 'available' (hijau) karena fallback, membuat kavling yang sudah serah terima tampak tersedia di peta dan pada PNG ekspor. Reproduksi: buka studio proyek 4438bb73 → klik studio-color-mode → jumlahkan angka pada studio-legend (10) vs jumlah g[data-kind=lot] (11)."
+}

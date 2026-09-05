@@ -1,0 +1,36 @@
+{
+  "summary": "Fase 72 (Studio Site Plan + penomoran per proyek + kode master opsional) diuji end-to-end. Backend: 10/10 regresi lama (test_p72_studio.py, test_p71_numbering.py) lulus + 5 tes baru (test_p72_ui_backend.py) lulus — pratinjau penomoran per proyek, pattern invalid → 400, cluster/blok kode kosong → otomatis, payload studio. Frontend: tombol site-plan-studio-open NAVIGASI ke /site-plan/studio/<pid> (bukan popup); studio empty state; unggah SVG kaya (transform+text) → 3 kavling + 1 jalan, stat kavling 3; klik shape → panel Bentuk (label A-01, kind, unit select); tab Buat unit auto-isi blok A nomor 01/02/03; submit tanpa 'izinkan blok baru' → 3 baris GAGAL 'Blok A belum ada di proyek ini…' tanpa error 500; centang lalu submit → 3 unit + blok baru dibuat, cakupan 100%, shape data-mapped=1 berlabel A-01..A-03; tracing: unggah PNG → slider opasitas + <image> di kanvas, alat gambar 4 titik + Enter → 'Bentuk ditambahkan' (digambar manual), ubah label A-04 + simpan, hapus bentuk berhasil; mode berurutan: unit A-09 (dibuat via API) terpetakan ke kavling kosong (studio-seq-next hilang, kavling tanpa unit 1→0); /config tab Penomoran: filter proyek mengubah header ke 'Nomor berikutnya (proyek terpilih)' dan nilai (master:cluster C05 global → C03 untuk proyek uji), dialog edit memuat pratinjau berkonteks proyek; kode kosong OK di Tipe Unit (T09), Vendor (VND-009), Subkontraktor (SUB-009), Cluster UI (C03); regresi /site-plan proyek berpeta (Cluster Asri Blok A) 11 plot + kartu ringkas A-01 tampil. Tidak ada console error merah di seluruh alur. SATU BUG: dialog buat proyek di /projects masih memaksa kode wajib.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AddProjectDialog (frontend/src/pages/ProjectsPage.js:285)", "issue": "Validasi lama masih aktif: `if (!form.name || !form.code)` → toast 'Nama & kode wajib diisi.' sehingga proyek TIDAK bisa dibuat dengan kode kosong walaupun placeholder berbunyi 'otomatis dari aturan penomoran bila kosong'. Dialog tetap terbuka, tidak ada request ke POST /api/projects (dikonfirmasi: proyek 'Uji Kode Kosong P72' tidak ada di DB). Backend sudah mendukung kode kosong.", "selector": "[data-testid=project-create-submit]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AddSubcontractorDialog", "issues": ["Input Kode hanya punya id (#addsubcontractordialog-kode) tanpa data-testid — menyulitkan otomasi; tambahkan data-testid"]},
+      {"screen": "Studio Site Plan", "issues": ["Stat 'Cakupan unit' menampilkan 100% padahal masih ada kavling belum terpetakan (A-04 manual) — angka benar secara definisi (unit terpetakan/total unit) tetapi berpotensi membingungkan; pertimbangkan label lebih eksplisit"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p72_ui_backend.py",
+    "/app/backend/tests/seed_p72_ui.py",
+    "/app/test_reports/pytest/p72_ui_backend.xml",
+    "/app/test_reports/pytest/p72_regr.xml"
+  ],
+  "action_items": [
+    "ProjectsPage.js:285 — hapus/ubah validasi kode wajib menjadi hanya nama wajib agar kode kosong → otomatis (PRJ-xx)",
+    "Tambahkan data-testid pada input Kode di AddSubcontractorDialog"
+  ],
+  "critical_code_review_comments": [
+    "Placeholder 'otomatis dari aturan penomoran bila kosong' di ProjectsPage tidak konsisten dengan validasi client-side — satu-satunya form master yang belum diselaraskan (StructureTab, VendorDialog, AddSubcontractorDialog, UnitTypePanel sudah benar)",
+    "STUDIO test id set lengkap dan konsisten; kanvas SVG memakai g[data-testid=studio-shape][data-shape-id][data-kind][data-mapped] sehingga sangat teruji"
+  ],
+  "updated_files": ["/app/backend/tests/test_p72_ui_backend.py", "/app/backend/tests/seed_p72_ui.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "~93% (13/14 skenario; hanya dialog buat proyek gagal)"},
+  "seed_data_creation": "Proyek 'Uji Studio UI' id 77c550b6-2ad4-4b6d-8464-df86571cb9fa (kode PRJ-35) dengan plan SVG dari studio (3 kavling A-01..A-03 + jalan), blok A (4 unit termasuk A-09), gambar latar PNG; cluster C01/C02/C03/UTAMA; master uji: Tipe T09 'Uji Tipe P72', Vendor VND-009 'Uji Vendor P72', Subkon SUB-009 'Uji Subcon P72'. Semua bernama 'Uji' → bisa dibersihkan dengan backend/tests/cleanup_p71.py. Tidak ada aturan penomoran yang diubah (hanya dibuka pratinjaunya).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Gunakan berkas uji /tmp/uji_siteplan.svg dan /tmp/uji_bg.png (dibuat ulang bila hilang). Studio proyek uji: /site-plan/studio/77c550b6-2ad4-4b6d-8464-df86571cb9fa. Untuk menguji kembali 'blok belum ada', hapus dulu blok A proyek uji (DELETE /api/masterplan/blocks/{id}). Proyek berpeta untuk regresi: 'Cluster Asri Blok A'. Alat gambar: klik 4 titik di kanvas lalu Enter. Jalankan pytest dengan env REACT_APP_BACKEND_URL.",
+  "rca_of_the_issue": "Fase 72 mengubah placeholder & backend agar kode master opsional, tetapi guard validasi lama di AddProjectDialog (ProjectsPage.js baris 285) tidak dihapus, sehingga submit di-short-circuit sebelum memanggil API. Reproduksi: /projects → 'Buat proyek' → isi hanya Nama → Simpan → toast 'Nama & kode wajib diisi.' dan dialog tetap terbuka. Mitigasi: ubah kondisi menjadi `if (!form.name)`."
+}

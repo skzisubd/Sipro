@@ -1,0 +1,33 @@
+{
+  "summary": "Fase 94–95 (Integrasi WhatsApp) tested. Backend smoke: pytest /app/backend/tests/test_p94_95_wa.py 8/8 PASS (config masked+verify handshake, live-mode guard, webhook Meta inbound queue+idempotent wamid, import dedup policies, outbound gateway status + status webhook, invalid phone, legacy contract, RBAC sales 403 on GET /wa/contacts & PUT /wa/config). Frontend E2E (superadmin) fully exercised: sidebar CRM menu 'Kontak WA → Lead' → /wa-capture (6 KPI cards ok); simulate inbound (PhoneInput local digits → +62) → toast + new row with badge 'Nomor baru', status Menunggu, KPI 'Menunggu diproses' 7→8; per-row 'Jadikan lead' dialog (policy lead/customer + PIC Rani Marketing) → result 'Lead baru 1' → Selesai → row leaves Menunggu, appears under filter 'Selesai' with status 'Jadi lead' + open-lead icon → /leads/<id> showing name QA Sim 5073, +628131805073, Sumber WhatsApp, campaign wa-capture; import tab (3 lines: new number, existing lead number, 'abc') → summary Baris 2 / valid 2 / invalid 0 / Duplikat lead 1 / Nomor baru 1, preview badges correct ('Duplikat lead — Legacy · acquisition · sales2@sipro.co.id') → import → toast + back to queue, KPI 'Duplikat lead (perlu keputusan)' = 1; duplicate policy: 'Lewati' → 'Dilewati 1' + row under filter Dilewati with reason 'Duplikat lead: Legacy' → restore btn returns to Menunggu; 'Tautkan ke lead lama' → 'Ditautkan 1'; bulk select 2 rows → wa-capture-selected-btn → 'Lead baru 2'; 'Jadikan lead semua (6)' → 'Lead baru 6, Dilewati 1' then button shows (0) and disabled; /leads 'Capture dari WA' navigates to /wa-capture; /inbox shows SIMULASI pill + sr-only mode badge, window badge 'Sesi 24 jam aktif · sisa 23:59' (inbox-window-remaining), outgoing message shows inbox-msg-status 'simulasi', un-linked conversation shows inbox-conv-capture-btn → dialog → 'Lead baru 1' → panel switches to lead context (stage/score/source/NBA) and capture button disappears; /config tab 'Integrasi WhatsApp': 5 credential fields (token/app_secret/verify_token = password type), mode select, Tes koneksi → honest 'Mode simulasi: tidak ada kredensial yang diuji…', pesan uji → status 'simulated', save verify_token → field cleared + masked placeholder 'qa-v••••••2026' + green check, mode Live without token → toast 400 'Mode live membutuhkan minimal WHATSAPP_TOKEN dan WHATSAPP_PHONE_ID.', checklist go-live & webhook box (URL + last received + signature state) rendered. No React console errors on /wa-capture, /inbox, /config (only the expected 400 from the intentional live-mode save).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "WaCaptureDialog", "issue": "Dialog state is not reset when reopened: only `result` is cleared in the open effect, so policy_lead / policy_customer / assignee / campaign keep the previous run's values. Reproduced: choose 'Lewati' → Batal → reopen for the same row → select still shows 'Lewati'; consequently a subsequent 'Jadikan lead semua' silently skipped the duplicate-lead contact (result 'Dilewati 1') even though the user never re-chose that policy. Reset the form state on open (or persist deliberately and show it in the header).", "selector": "wa-capture-policy-lead", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/config › Integrasi WhatsApp", "issues": ["After a failed live-mode save (400), the Mode select stays on 'Live' locally while the server is still 'simulation' — no visual hint that the shown mode is unsaved; consider reverting to server value on error."]},
+      {"screen": "/inbox (conversation not yet linked to a lead)", "issues": ["Right panel for un-linked conversations has no data-testid=inbox-context-panel (only inbox-conv-capture-btn); the testid appears only after capture — minor testability gap."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p94_95_wa.py", "/app/test_reports/pytest/pytest_p94_95_iter142.xml"],
+  "action_items": [
+    "WaCaptureDialog: reset policy_lead/policy_customer/assignee/campaign when the dialog opens (stale 'Lewati' caused an unintended skip during 'Jadikan lead semua').",
+    "Optional: revert Mode select to server value when PUT /api/wa/config returns 400; add data-testid=inbox-context-panel to the un-linked conversation panel."
+  ],
+  "critical_code_review_comments": [
+    "WaCaptureDialog useEffect([open, canAssign]) only clears `result`; add setPolicyLead('link'), setPolicyCustomer('create'), setAssignee(''), setCampaign('') for predictable, non-destructive defaults on every open."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8 pytest)", "frontend": "95% (all flows pass; 1 medium state-reset bug)"},
+  "seed_data_creation": "QA data in PT SIPRO Land org: WA contacts + leads 'QA Sim 5073' (+628131805073), 'QA State 812' (+628135286812), 'Andi Baru QA' (+628139182088), plus link of import contact 'Legacy Dup' (+6281321347667) to existing lead 'Legacy'. wa config verify_token set to 'qa-verify-token-2026' via UI (mode still simulation; pytest overwrites verify_token when it runs).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 (used), sales@sipro.co.id / Sipro#2026 (RBAC in pytest)",
+  "context_for_next_testing_agent": "WA queue is currently empty (all captured). Use wa-simulate-inbound-btn with random 10-digit local numbers (813xxxxxxx) to create fresh queue rows; PhoneInput accepts local digits only. Duplicate-lead scenario: import an existing lead phone from GET /api/leads. Remember WaCaptureDialog keeps last-selected policy across opens — re-select explicitly in scripts until fixed.",
+  "rca_of_the_issue": "WaCaptureDialog keeps policy/assignee/campaign in component state that is never reinitialised on `open` (the effect resets only `result`), so the last used duplicate policy leaks into the next capture (including bulk/all), producing 'Dilewati' instead of the documented default 'Tautkan ke lead lama'."
+}

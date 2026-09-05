@@ -1,0 +1,18 @@
+{
+  "summary": "P113 retest (frontend only) of the 2 HIGH bugs from iteration_112 + sanity. ALL PASS. (1) AdminPermissions full cycle verified: leads x Sales revoked (all 14 checkboxes unchecked -> Simpan enabled -> toast 'tersimpan'), page reload shows cell 'dicabut admin' with DICABUT ADMIN badge; opening the cell and clicking 'Kembalikan ke bawaan' [admin-permissions-cell-default] produced pending row 'leads · Sales: tidak boleh -> lihat sendiri, buat, ubah', Simpan became ENABLED, save succeeded and after reload the cell shows buat/ubah/lihat sendiri with MATRIKS badge. API verified: GET /api/admin/permissions matrix.leads.sales == ['create','update','view_own'] and new 'defaults' field present (defaults.leads.sales identical). (1b) 'Batalkan suntingan' [admin-permissions-cell-reset] still undoes an UNSAVED edit: toggling 'hapus' created pending change + enabled Simpan, clicking it removed the pending block and disabled Simpan. (2) CreateTaskDialog reopen: Tugas Baru -> jenis 'Unit' -> Batal -> reopen -> jenis still 'Unit' AND record combobox now returns 18 unit options (A-01 — Blok A ...), selected one, title TEST_P113_x, submit -> toast 'Tugas dibuat.' and task listed with 'To-do · unit'. Sanity: RBAC editor labels fully readable (lihat, lihat semua, lihat sendiri, buat, ubah, hapus, tugaskan, setujui, verifikasi, tanda tangan, terobos, batalkan, kelola, semua — no truncation); sales@sipro.co.id sees nav-item-leads and /leads loads 17 leads with no 403 after restore. Test data purged (1 TEST_P113 task deleted via Mongo).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/verify_p113.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CreateTaskDialog open-effect still omits `preset` from deps (eslint-disabled); if preset changes while the component stays mounted (route param change on the same page) the retained relation could be stale — not reproducible in current routes but worth tightening."
+  ],
+  "updated_files": ["/app/backend/tests/verify_p113.py"],
+  "success_rate": {"backend": "N/A (skipped per request; only 1 API assertion executed and passed)", "frontend": "100%"},
+  "seed_data_creation": "1 task TEST_P113_x created via UI then purged via Mongo (tests/verify_p113.py). RBAC matrix leads x sales revoked then restored to default ['create','update','view_own'] — verified via API and sales sidebar.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "superadmin@sipro.co.id / sales@sipro.co.id — Sipro#2026",
+  "context_for_next_testing_agent": "Both iteration_112 HIGH bugs are fixed and verified. Environment left clean: no TEST_P113 data, matrix leads x sales = default. Useful helper: /app/backend/tests/verify_p113.py (login + matrix assertion + Mongo purge of TEST_P113 tasks). Reminder: RBAC cell editor buttons are 'Batalkan suntingan' (undo unsaved) and 'Kembalikan ke bawaan' (restore code default, works on saved revocations). Permission changes only reach a logged-in user after re-login (localStorage.clear()).",
+  "rca_of_the_issue": "Fixes confirmed at source: AdminPermissions.restoreDefault() writes server.defaults[resource][role] (or deletes the key) so the draft differs from the saved matrix and the changes memo enables Simpan; backend GET /permissions now returns 'defaults': DEFAULT_PERMISSIONS. CreateTaskDialog open-effect now calls fetchRecords(form.rel_type) when no preset exists, repopulating the combobox on reopen."
+}

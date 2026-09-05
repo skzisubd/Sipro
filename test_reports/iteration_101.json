@@ -1,0 +1,36 @@
+{
+  "summary": "Fase 66 diuji end-to-end (backend + UI). Backend: 17/17 pytest lulus (/app/backend/tests/test_doc_p66.py) — daftar jenis dokumen dengan category/category_label/has_script, GET/PUT naskah per jenis, penolakan placeholder asing (400), RBAC (sales PUT script 403, GET script 200, POST preview 403), preview PDF memuat naskah draf + nilai contoh ('NASKAH QA 66' + 'Dewi Kartika', tanpa token mentah), gaya tabel (grid none + show_header false tersimpan & terbaca, grid 'pelangi' ditolak 422, PDF tanpa nama kolom tapi tetap ada isi baris), regresi PDF dokumen/SPK/PO 200. UI: panel Template Dokumen kini SATU panel (doc-layout-panel) tanpa dua sub-tab lama, 5 tab (Naskah/Kop/Baris/Tabel/Tanda tangan) + iframe pratinjau yang blob-nya terbukti application/pdf (4.5KB, header %PDF-), pemilih jenis dokumen 20 opsi berkelompok per kategori, 45 chip placeholder untuk SPR_KPR (chip menyisipkan token), edit naskah memicu render ulang pratinjau, Simpan naskah -> toast sukses + persist setelah reload, placeholder asing -> toast error backend (bukan sukses palsu), tab Tabel: grid 'Tanpa garis (transparan)' + matikan nama kolom + Simpan tampilan -> tersimpan (diverifikasi langsung di MongoDB), Tambah jenis dokumen (QA_SURAT_KUASA) muncul di pemilih & naskahnya bisa disunting. SEMUA data uji dipulihkan; gate scripts/verify_p66.py tetap HIJAU (53 pemeriksaan) setelah pengujian.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ScriptForm (jenis dokumen kategori 'lainnya'/__default__)", "issue": "Placeholder textarea menyarankan contoh '{{buyer_name}}' padahal untuk __default__/kategori lainnya hanya doc_number/date/org_name/sales_name yang sah — pemakai yang mengikuti saran itu akan kena error 400 saat menyimpan", "selector": "[data-testid=\"doc-layout-script-text\"]", "priority": "LOW"},
+      {"component": "ScriptForm", "issue": "Tidak ada peringatan inline sebelum simpan: data-testid doc-layout-script-unknown tidak pernah tampil saat pemakai MENGETIK token asing (hanya muncul dari respons server). Validasi hanya terasa setelah klik simpan (toast error).", "selector": "[data-testid=\"doc-layout-script-unknown\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/master-data (peran sales)", "issues": ["Sales dialihkan diam-diam ke Beranda saat membuka /admin/master-data (route guard) — pesan hak akses doc-layout-denied tidak pernah terlihat; tidak ada toast/penjelasan 'tidak punya akses'. Bukan layar kosong/error, jadi bukan cacat blokir, tapi tidak sesuai skenario yang diminta."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_doc_p66.py", "/app/test_reports/pytest/p66_results.xml"],
+  "action_items": [
+    "Opsional: perbaiki teks contoh placeholder textarea naskah agar memakai token yang SAH untuk kategori terpilih (jangan {{buyer_name}} untuk __default__).",
+    "Opsional: tampilkan peringatan inline (doc-layout-script-unknown) secara live saat pemakai mengetik token yang tidak dikenal.",
+    "Opsional: tampilkan pesan hak akses eksplisit (atau biarkan halaman termuat dengan doc-layout-denied) untuk peran tanpa izin, bukan redirect diam ke Beranda.",
+    "Catatan dokumentasi: testId tombol tambah jenis dokumen sebenarnya 'master-doc-add-btn' (bukan 'master-doc-add') — samakan penyebutannya di dokumen/gate."
+  ],
+  "critical_code_review_comments": [
+    "doc_layout_router.preview memakai izin settings:update sehingga peran documents:view tidak bisa melihat pratinjau — konsisten dengan desain, tapi pastikan UI untuk peran read-only tidak menampilkan panel pratinjau yang selalu 403 (saat ini panel hanya bisa dicapai admin sehingga tidak terasa).",
+    "doc_layout.list_targets membaca document_layouts dengan to_list(50) dan document_templates to_list(300) — batas keras ini akan memotong daftar bila satu organisasi punya banyak jenis dokumen kustom; sebaiknya batasnya dihitung atau dipaginasi."
+  ],
+  "updated_files": ["/app/backend/tests/test_doc_p66.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% alur inti (panel gabungan, naskah, pratinjau, gaya tabel, jenis dokumen baru)"},
+  "seed_data_creation": "Sementara: naskah BAST & SPR_KPR ditambah penanda 'NASKAH QA 66', layout SPR_KPR (table.grid=none, show_header=false), jenis dokumen QA_SURAT_KUASA. SEMUA sudah dipulihkan/dihapus — document_layouts kosong seperti semula, document_templates kembali 9 kode asli, verify_p66.py tetap PASS.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / sales@sipro.co.id, sandi Sipro#2026",
+  "context_for_next_testing_agent": "Berkas regresi Fase 66: /app/backend/tests/test_doc_p66.py (pakai pytest.ini bawaan, xdist aktif). Pratinjau PDF TIDAK terlihat di screenshot Chromium headless (viewer PDF tidak dirender) — verifikasi dengan fetch(blob) lalu cek header '%PDF-' seperti di skrip uji, bukan dari screenshot. Cleanup data uji WAJIB lewat pymongo langsung karena DELETE /api/master/doc-templates hanya soft-delete (is_active=false).",
+  "rca_of_the_issue": "Tidak ada cacat fungsional yang ditemukan pada Fase 66; keluhan pengguna (dua sub-tab terpisah, naskah tidak masuk dokumen, gaya tabel tidak bisa diatur) sudah tertutup dan terbukti lewat isi PDF, bukan hanya status 200. Temuan yang tersisa hanya kosmetik/UX ringan (teks contoh placeholder, peringatan inline, redirect senyap untuk peran tanpa izin)."
+}

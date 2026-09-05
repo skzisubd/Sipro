@@ -1,0 +1,37 @@
+{
+  "summary": "Fase 88 (A–E) diuji end-to-end. Backend: 21 test pytest baru di /app/backend/tests/test_p88.py — 19 lulus, 2 gagal (validasi promo target=cost tanpa target_component tidak ditolak, baik POST maupun PUT). Terverifikasi: GET/POST skor lead (score 0-100, band, breakdown, bands) + persistensi skor; setting lead.score.weights/bands, handover.settlement_policy (enum 3 opsi) & settlement_min_paid_pct; kebijakan 'peringatan' mengubah item pelunasan_belum dari blocking→warning pada /api/handover/check dan dipulihkan ke wajib_lunas; seed promo PROMO-DP(dp)/PROMO-BF(booking_fee)/PROMO-BPHTB(cost+BPHTB); reference group discount_target; simulate PROMO-DP → discount 5.000.000, by_target.dp 5.000.000, terms[0].discount 5.000.000, Σ terms == net_price; reserve+PROMO-BF → booking_fee 2.000.000 & discount 2.000.000 & pricing.by_target.booking_fee 2.000.000; reserve+PROMO-BPHTB tanpa skema all-in → 400 pesan komponen BPHTB, dengan skema ALLIN_STD → komponen BPHTB amount 0 + discount>0; template SPR_CASH/SPR_CASH_STAGED/SPR_KPR dengan doc_code SPR-CASH/SPR-CASHB/SPR-KPR, konten berbeda dan memuat token {{discount_rows}}; normalisasi telepon lead ke +62. Frontend: semua 5 skenario UI lulus (PhoneInput +62 lead & customer, LeadScoreCard + rescore toast, kolom Sasaran & dialog PROMO-BPHTB, buat promo target DP, breakdown penawaran label '(potong uang muka / DP)' + baris termin '(−Rp 5.000.000 potongan)').",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/pricing/promos", "issue": "target='cost' TANPA target_component diterima (HTTP 200) — validator models_p69.PromoIn._target_component memakai @field_validator('target_component'); pada Pydantic v2 validator tidak dijalankan ketika field opsional dihilangkan dari payload (default None). Akibatnya promo 'komponen biaya' tanpa kode komponen bisa dibuat dan tidak akan pernah memotong apa pun."},
+      {"endpoint": "PUT /api/pricing/promos/{id}", "issue": "Sama: PATCH {\"target\":\"cost\"} tanpa target_component diterima (200) — PricingRulePatch juga tidak memvalidasi kombinasi target/target_component (bisa merusak promo yang sudah benar)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Pusat Konfigurasi › Harga & Promo › dialog promo", "issues": ["Field 'Berlaku mulai'/'Berlaku sampai' memakai input date native browser (placeholder mm/dd/yyyy, format US) alih-alih komponen DatePickerField/kalender shadcn yang sudah ada di components/patterns/DatePickerField.js — tidak konsisten dengan lokal Indonesia", "Ketika 'Jenis nilai' = Persen, label field tetap 'Persen potongan (%)' namun nilai besar (mis. 1000000) tetap diterima tanpa peringatan; validasi 0–100 untuk persen tidak ada di UI"]},
+      {"screen": "Dialog penawaran — pilihan Promo", "issues": ["Teks trigger promo terpotong ('Promo potongan ...') karena lebar kolom sempit; tooltip/title tidak ada"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p88.py", "/app/test_reports/pytest/p88_results.xml"],
+  "action_items": [
+    "Ganti @field_validator('target_component') di models_p69 (PromoIn/DiscountSchemeIn/CouponIn) dengan @model_validator(mode='after') sehingga target='cost' tanpa target_component ditolak 422 walaupun field dihilangkan dari payload.",
+    "Tambahkan validasi kombinasi target/target_component pada PricingRulePatch (PUT) — sekarang bisa mengubah promo menjadi target 'cost' tanpa komponen.",
+    "Opsional (kosmetik): pakai DatePickerField (kalender shadcn) untuk 'Berlaku mulai/sampai' di PricingRuleDialog; batasi nilai 0–100 saat jenis = persen."
+  ],
+  "critical_code_review_comments": [
+    "models_p69.py: validator lintas-field pada field opsional harus model_validator(mode='after'); pola field_validator serupa mungkin dipakai di model lain — perlu audit cepat.",
+    "docgen.ensure_templates sudah benar melindungi naskah yang disunting (cek updated_by) dan next_doc_number memakai scope `docnum:{doc_code}` sehingga SPR-CASH/SPR-CASHB/SPR-KPR bernomor terpisah — dikonfirmasi lewat review kode.",
+    "handover_engine bagian 4 sudah mengambil policy & min_pct dari settings; item memakai kunci `code`/`state` (bukan key/status) — perlu diingat untuk test berikutnya."
+  ],
+  "updated_files": ["/app/backend/tests/test_p88.py"],
+  "success_rate": {"backend": "90% (19/21)", "frontend": "100% (5/5 skenario)"},
+  "seed_data_creation": "Lead uji dengan prefix TEST_P88/TESTUI P88 (beberapa dengan deal reservasi PROMO-BF/PROMO-BPHTB pada unit available), 1 customer TESTUI CUST, dan beberapa promo prefix TEST_P88_/TESTUI-DP- yang sudah DINONAKTIFKAN (endpoint DELETE /api/pricing/promos tidak ada → 405, jadi cleanup memakai active=false). handover.settlement_policy sudah dipulihkan ke 'wajib_lunas'; PROMO-DP dipulihkan ke target 'dp'.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 (tombol 'Masuk cepat' Super Admin)",
+  "context_for_next_testing_agent": "Jalankan `pytest /app/backend/tests/test_p88.py -p no:randomly`. Catatan: (1) test telepon lead memakai nomor acak karena backend menolak duplikat 409; (2) item handover check memakai field `code`/`state`, endpoint GET /api/handover/check?unit_id=; (3) skema all-in ada di GET /api/allin-schemes dengan field `items[].component_code`; (4) template dokumen di GET /api/master/doc-templates; (5) pricing rules tidak punya DELETE (405) — nonaktifkan via PUT {active:false}. Tab profil lead memakai testid `tab-page-tab-{key}` (mis. tab-page-tab-penawaran).",
+  "rca_of_the_issue": "Pydantic v2 hanya menjalankan field_validator bila field tersebut ada di input (atau validate_default=True). Karena `target_component` opsional dengan default None, payload {target:'cost'} tanpa field tersebut melewati validator sehingga promo bersasaran komponen tanpa kode komponen lolos disimpan; PUT juga tidak memvalidasi kombinasi. Perbaikan: model_validator(mode='after') pada model create & patch."
+}

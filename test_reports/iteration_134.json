@@ -1,0 +1,29 @@
+{
+  "summary": "Fase 85 (Tutup Periode), 86 (Giro Mundur), 87 (Bukti Kas BKM/BKK) diuji end-to-end di /cash-bank. Semua alur utama LULUS tanpa bug fungsional. Fase 87: /cash-bank?tab=vouchers panel voucher-panel muncul, voucher-sum '43 bukti · masuk Rp 9.505.415.000 · keluar Rp 1.480.902.564'; filter kind 'BKK — Kas Keluar' → 22/22 baris berbadge BKK; search 'BKM' → 21 baris; GET /api/cash-bank/vouchers/{id}/pdf → 200 application/pdf (popup terbuka via window.open blob). Fase 86: sebagai finance dibuat GIRO/2026/0005 Bilyet Giro BG-E2E-A4Q8Q1 Rp 100rb JT hari+3 dengan bank BCA & deal A-02 (Ibu Maya Kusumastuti) → status 'Di tangan' → dikliring ke Rekening Operasional → status 'Cair · Rekening Operasional · KWT/2026/0010'; GIRO/2026/0006 dibuat tanpa deal, ditolak (window.prompt 'saldo penerbit kosong') → status 'Ditolak bank' dengan alasan; KPI 'Ditolak bank' naik 1 → 2. Fase 85: finance TIDAK melihat locks-lock-btn dan tabel menampilkan 'supervisor keuangan' ✓. Sebagai finlead: 5 baris rekening tampil. Untuk BANK 'Rekening Operasional' dialog kunci menampilkan alasan 'Belum ada mutasi rekening berkolom saldo untuk periode ini' + Rekonsiliasi tanpa_data, tombol Kunci DISABLED ✓ (perilaku benar). Untuk KAS Besar: periode default 2026-08 (bulan lalu), Saldo buku per 2026-08-31 = Rp 0, status 'Belum layak dikunci' alasan 'Kas tunai: isi hasil opname'; setelah counted=0 → 'Layak dikunci' & submit aktif → sukses; baris berubah menjadi 'Terkunci s.d. 2026-08 · Rp 0'; riwayat bertambah. Unlock via prompt 'uji e2e buka' → kembali 'belum dikunci'. Backend RBAC smoke: sales GET /pdc 403, sales GET /cash-bank/locks 403, finance POST /cash-bank/locks 403 (butuh bank:approve) → 3/3 pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Fase 85 – dialog kunci untuk BANK", "issues": ["Copywriting alasan cukup jelas ('Belum ada mutasi rekening berkolom saldo…'). Namun untuk BANK yang belum pernah direkonsiliasi, tombol 'Kunci periode' TETAP terlihat dari daftar (klik → dialog → submit disabled). UX bisa lebih ramah bila daftar menampilkan tooltip / badge kecil 'Perlu rekonsiliasi' pada aksi supaya pengguna tahu tanpa membuka dialog. Minor."]},
+      {"screen": "Fase 87 – VouchersPanel", "issues": ["Kolom 'Lawan akun' menampilkan nama akun tanpa jumlah nominal per akun. Untuk jurnal dengan >1 lawan akun (mis. BKK/2026/0020 → Utang Usaha + Utang Pajak), pengguna tidak melihat pemecahan nominalnya di baris. Tersedia tombol PDF untuk detail — cukup, tapi ringkasan hover/tooltip akan membantu. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p85_87_rbac_smoke.py", "/app/backend/tests/test_p85_87_cash_control.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PdcDialog.js: Radix ReferenceSelect 'Bank penerbit' pakai group 'financing_bank'; instrument_no min 2 chars validasi client OK; RupiahInput amount → Number(form.amount) sudah benar.",
+    "PdcPanel.act(): window.prompt untuk bounce/cancel — konsisten dengan modul lain; server memvalidasi min-length. UX bisa upgrade ke Dialog custom (opsional).",
+    "PeriodLockDialog.js: preview di-fetch pada setiap perubahan period/counted (debounce implicit via useEffect). Bagus. Namun tidak ada debounce pada RupiahInput → tiap keystroke memicu request /locks/preview. Pertimbangkan setTimeout 250ms.",
+    "VouchersPanel.print(): memakai downloadFile dengan open:true → membuka tab baru untuk blob PDF; sudah tepat. Tombol memakai busy state anti double-click.",
+    "PeriodLockPanel: unlock memakai window.prompt native — sesuai konvensi Fase 82-84. Reason min 5 karakter divalidasi server (tidak client). Bagus."
+  ],
+  "updated_files": ["/app/backend/tests/test_p85_87_rbac_smoke.py"],
+  "success_rate": {"backend": "100% (3/3 RBAC smoke)", "frontend": "100% (Fase 85/86/87 lulus penuh)"},
+  "test_credentials": "finance@sipro.co.id, finlead@sipro.co.id, sales@sipro.co.id — Sipro#2026 (valid).",
+  "seed_data_creation": "GIRO/2026/0005 (BG-E2E-A4Q8Q1) sudah dikliring → KWT/2026/0010 (menambah pembayaran deal A-02 Ibu Maya Kusumastuti Rp 100.000). GIRO/2026/0006 (BG-E2E-T0B5SF) berstatus 'Ditolak bank'. Kunci periode Kas Besar 2026-08 sudah dibuka kembali (riwayat: dikunci+dibuka masing-masing 1 entry). Tidak ada seed yang perlu dibersihkan lagi.",
+  "retest_needed": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Semua fitur Fase 85–87 lulus penuh. Bila retest cepat: (1) BUKA /cash-bank?tab=vouchers cek voucher-sum + PDF GET, (2) buat 1 giro tanpa deal via finance lalu bounce (prompt), (3) sebagai finlead kunci Kas Kecil Site periode bulan lalu dengan counted=0 lalu unlock. Perilaku benar bila BANK dialog menampilkan 'Belum ada mutasi rekening…' dan submit disabled — jangan salah baca sebagai bug. Overlay ResizeObserver dev bisa muncul, tekan Esc atau remove '#webpack-dev-server-client-overlay' via evaluate.",
+  "rca_of_the_issue": "N/A – tidak ada bug ditemukan."
+}

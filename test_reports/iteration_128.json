@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only retest Fase 79 for finance & finance_manager personas after RBAC fix. All 8 requested flows PASSED: (1) finance sees cost-billing-panel + allin-amendment-box on KPR Exclude contract KTR/2026/0010; amendment dialog scheme select loaded 2 schemes (no allin-amend-scheme-error), submit enabled only with scheme + reason>=10, toast success, pending box shows 'Exclude -> All-in Standar' + reason + requester finance@sipro.co.id, and Setujui/Tolak hidden for requester. (2) finlead (finance_manager) sees pending with Setujui/Tolak; reject without note -> toast 'Alasan penolakan wajib diisi.' (backend 400, expected); approve with note -> toast success, cost panel switched to 'Skema All-in Standar' (pass-through Rp 9.5jt, developer-borne Rp 36jt), history row data-status=approved names finlead@sipro.co.id. (3) Separation of duty: finlead requested amendment on All-in Cash contract -> pending box WITHOUT approve/reject; superadmin then saw buttons and rejected with note -> history row data-status=rejected names superadmin@sipro.co.id. (4) /finance > Penagihan: kpr-tranche-reminder-panel visible for both finance and finlead with 4 kpr-tranche-reminder-row (incl. KTR/2026/0010 Akad & Retensi), no kpr-tranche-reminder-error; run -> '2 pengingat baru dikirim (4 tahap siap cair)', second run -> '0 pengingat baru' (idempotent per tahap). (5) Reminder reset after cancel (superadmin): record T1 Akad disbursement -> banner kpr-tranche-ready listed only Retensi; cancel with reason -> banner lists Akad again; run reminders -> '1 pengingat baru dikirim' (marker reset works). (6) cost-dialog-payee & cost-dialog-note present in 'Catat beban (AP)' dialog. No red console errors on any visited page (only the expected 400 from the intentional reject-without-note validation).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CostBillingPanel > dialog 'Catat beban (AP)'", "issues": ["Nominal (Rp) field renders as native number input with browser spinner arrows instead of a formatted/masked currency input (cosmetic, consistent with earlier phases)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p79_ui_api.py", "/app/backend/tests/test_p79_amend_pdf_reminder.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AllinAmendmentBox.load() swallows GET /allin-amendments errors silently (.catch(() => {})) — an RBAC/network failure would render an empty box with no feedback; consider an error message like the schemes list already has.",
+    "TrancheReminderPanel returns null while rows === null; if the GET hangs the panel never appears and gives no loading indicator."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (light API smoke via curl: allin-amendments, allin-schemes, kpr/tranche-reminders all 200 for finance)", "frontend": "100% (8/8 requested flows)"},
+  "seed_data_creation": "No new seed. Test data mutated: amendment approved (Exclude -> All-in Standar) on contract 60bd3d0d (KTR/2026/0010); rejected amendment recorded on contract 8bf3a969; one KPR T1 disbursement created then cancelled on KTR/2026/0010; tranche reminder notifications sent (3 total runs).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "superadmin@sipro.co.id / finance@sipro.co.id / finlead@sipro.co.id, password Sipro#2026 (login via /login, Enter). NOTE for automation: /login redirects to / when a session cookie exists — clear cookies + localStorage before switching personas.",
+  "context_for_next_testing_agent": "Contract 60bd3d0d (KTR/2026/0010) now uses the All-in Standar scheme (amendment approved by finlead) and has an approved amendment history row + a cancelled KPR disbursement; contract 8bf3a969 has a rejected amendment row. Reminder markers for KTR/2026/0010 & KTR/2026/0004 are already sent, so a fresh 'Kirim pengingat sekarang' returns 0 unless a disbursement is cancelled again. PDF INB/KWB (cost-invoice-pdf / cost-receipt-pdf) was not re-tested in this iteration (no issued invoice/receipt on the seeded contracts; it passed as super_admin in iteration_127).",
+  "rca_of_the_issue": "Previous 403 for finance/finance_manager was caused by rbac._permitted not treating 'view'/'view_all' as satisfying 'view_own'; the fix is verified — all Fase 79 GETs return 200 and the UI renders for both personas."
+}

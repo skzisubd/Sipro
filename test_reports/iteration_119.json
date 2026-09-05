@@ -1,0 +1,24 @@
+{
+  "summary": "P69C booking-fee extensions tested end-to-end. Backend pytest 8/8 pass (settings/gate/portal-proof/reject/refund/reminder/cleanup). Regression: verify_29b.py 58/58 PASS, verify_payment_schemes.py 60 checks PASS, verify_rbac.py PASS. Frontend verified: owner Lead 360 shows booking-fee-panel with disabled deal-book-button on unpaid deals, working booking-fee-pay-button/dialog, booking-fee-refund-box visible on cancelled paid deals with refund-pdf 'Cetak' link. Portal login by phone +628124400002 with OTP 000000 works; Payments tab shows portal-booking-fee-card + portal-booking-fee-status ('Belum dibayar') + portal-booking-fee-proof-button; refunded deal card shows refund summary (RF-BF/... dikembalikan/hangus).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_p69c_booking_fee_ext.py",
+    "/app/test_reports/pytest/p69c_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "booking_fee.submit_proof rejects same-sha bytes across ALL deals org-wide (file_shas $in). Prevents legitimate re-use of the same generic receipt image for two deals of the same buyer — worth confirming this is intentional (business rule 'never re-upload the same photo') vs a bug (should be scoped per deal_id).",
+    "GET /api/settings does not expose a single-key read endpoint — clients must go through /api/settings/effective?keys=... . Not a bug, but the review request wrongly implied there is one; documenting for future testers.",
+    "portal_router._find_portal_user auto-provisions a portal_user row for a lead the first time OTP is requested; if a lead has multiple identities (email + phone same person) two portal_users can be created. Consider dedup by lead_id when creating.",
+    "booking_fee.pay does not enforce that deal.status ∈ (reserved, booked) — a manually cancelled deal whose invoice is still 'unpaid' at the moment of the pay call would still take payment; today cancel() flips the invoice to 'cancelled' first, but the safety net is at one layer only."
+  ],
+  "updated_files": ["/app/backend/tests/test_p69c_booking_fee_ext.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@sipro.co.id / finance@sipro.co.id / sales@sipro.co.id — all Sipro#2026; portal OTP master 000000 (works alongside simulation code shown on-screen).",
+  "seed_data_creation": "Test deals were created via /api/deals/reserve and cancelled by test_zz_cleanup. Setting booking_fee.require_paid_before_booking left at True as required. Reminder test poked one booking_fee_invoices row's due_date to tomorrow (deal already cancelled in cleanup; the wa_reminders 'simulasi' row remains as evidence).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend suite at /app/backend/tests/test_p69c_booking_fee_ext.py — run with -o addopts= to bypass xdist (module-level CREATED_DEALS shared state). PNG bytes for portal proof uploads MUST include os.urandom(...) to sidestep file_shas dedup across runs. Settings single-key read uses /api/settings/effective?keys=... not /api/settings/<key>. Demo deal on A-03 for Bapak Rudi Hartono was untouched; setting require_paid_before_booking left ON.",
+  "rca of the issue": "No bugs found in P69C additions. Two test-only fixes: (1) added dotenv load for MONGO_URL in reminder test since backend/.env is not exported to pytest env; (2) unique random bytes appended to test PNG uploads to avoid `submit_proof` sha256-based dedup rejecting the second run."
+}

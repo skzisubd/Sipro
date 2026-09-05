@@ -1,0 +1,24 @@
+{
+  "summary": "Fase 69 pricing engine (skema diskon, promo, kupon) + integrasi reservasi/penawaran diuji end-to-end. Backend: 27/27 pytest passed. Frontend: /config → Harga & Promo panel (owner) menampilkan sub-tabs discount/promo/coupon dengan 3 baris kupon seeded, tombol tambah + dialog + redemptions dialog berfungsi; manager /config diarahkan ke home (RBAC ok). Reserve dialog pada lead detail menampilkan pilihan unit, skema diskon, promo, kupon (check → toast hijau), simulate → breakdown lengkap dengan 3 discount lines (DISC-CASH 17jt + kupon 5jt = 22jt, 2.59%) dan tabel termin (Σ=net). Tombol Reservasi dinonaktifkan karena diskon 2.59% > batas kewenangan sales 2% (perilaku benar: butuh approval → user diarahkan ke Penawaran). Quotation dialog TIDAK punya input diskon manual; semua testid QUOTE_PRICING hadir.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_p69_pricing.py",
+    "/app/test_reports/pytest/p69_pricing.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "quotation_engine.simulate() masih menerima parameter discount_amount hanya untuk MENOLAKNYA (ValueError). Baik untuk backward compatibility, tapi endpoint /quotations/simulate & /quotations lewat QuotationSimulateIn/QuotationCreateIn masih mengekspos field 'discount_amount' — sebaiknya hapus dari schema P47 supaya tidak menggoda klien mengirimnya (defense in depth).",
+    "pricing_engine.compute_discounts: batas cap total (total > gross) sudah divalidasi, tapi urutan pemilihan add-on & diskon dari GROSS termasuk add-on 'info' — verifikasi: addon_lines mengecualikan finance_treatment='info' dari addon_total ✓ ok.",
+    "sales_reserve tak terlihat di file yang diperiksa — pastikan `pricing.terms` disimpan pada deal dan tidak me-duplikasi field `terms` di level lain. deal.pricing terisi ✓ terverifikasi via test.",
+    "Race condition redeem_coupon menggunakan find_one_and_update atomic ✓ bagus. Namun coupon_redemptions.insert TIDAK di-rollback bila insert gagal setelah increment sukses (tidak ada transaksi). Risiko kecil di preview; catat sebagai peningkatan."
+  ],
+  "updated_files": ["/app/backend/tests/test_p69_pricing.py"],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% pada alur yang diuji"},
+  "test_credentials": "owner@sipro.co.id / manager@sipro.co.id / sales@sipro.co.id — sandi Sipro#2026",
+  "seed_data_creation": "Test membuat & menonaktifkan (active:false) baris test-prefix: TEST-DISC-P69, TEST-PROMO-P69, TEST-EXPIRED-P69, TEST-EXP-VALIDATE. Semua deal test dibatalkan (unit kembali available, kupon dilepas).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test regresi ada di /app/backend/tests/test_p69_pricing.py (27 test, parallel-safe via xdist loadscope). Semua alur Fase 69 (CRUD RBAC, options, simulate, coupon validate/redeem/release/per-customer quota, reserve DISC-MGR reject, quotation awaiting_approval→decision→convert dengan kupon, PDF) hijau. Frontend testid PRICING/RESERVE/QUOTE_PRICING semua konsisten dengan implementasi. Perilaku 'submit disabled + amber warning' pada reserve dialog terkonfirmasi ketika total diskon > discount_limit_pct.",
+  "rca of the issue": "n/a — tidak ada bug ditemukan."
+}

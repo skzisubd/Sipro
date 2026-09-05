@@ -1,0 +1,44 @@
+{
+  "summary": "Fase 93 diuji end-to-end. Backend: /app/backend/tests/test_p93.py (18 tes, 17 lulus) meliputi ads:spend/campaigns/leads/qualified/hot/booked/impressions/clicks/leads_platform, konteks ctx=attribution, project:available|held|sold|value|progress, /api/masterplan/units dengan status ganda (koma), dan RBAC sales. Frontend (Playwright, cache CDP dibersihkan): kartu KPI + DrilldownDialog di /campaigns?hub=kinerja, ?hub=biaya, /attribution?hub=funnel, /projects/{id}, ekspor CSV (BOM + ';' + header benar + 28 baris data), navigasi baris ke /leads/{id} dan /units/{id}, 'Buka tabel terfilter' (tab Unit terfilter 4 unit, chip status ganda, klik chip -> 18 unit), regresi /finance dan Beranda. Ditemukan 1 bug angka HIGH (biaya iklan di Atribusi digandakan 7x) + beberapa isu minor.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/ads/attribution", "issue": "totals.spend menghitung biaya kampanye BERULANG: baris atribusi dikelompokkan per (source, campaign) sehingga spend kampanye yang sama ditempel ke 7 baris -> total 110.810.000 padahal biaya nyata 15.830.000 (sum distinct = drilldown ads:spend & /api/ads/performance). Akibatnya kartu 'Biaya iklan terpetakan' (Rp 111 jt) TIDAK cocok dengan popup rinciannya (Rp 15.830.000) dan 'CPL gabungan' (Rp 2.408.913) salah 7x (seharusnya ~Rp 344.130). Perbaikan: hitung totals.spend dari himpunan campaign_id unik (mis. sum(spend_map[cid]['spend'] untuk cid unik pada rows level campaign)) di ads_report.attribution (~baris 313).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "/api/drilldown/ads:clicks | ads:impressions | ads:leads_platform", "issue": "Baris/total metrik non-uang tidak diberi penanda satuan, sehingga UI merender 'Rp 3.417' untuk 3.417 klik. Perlu flag (mis. unit/amount_kind: 'count') dari backend atau field terpisah."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DrilldownDialog", "issue": "Semua nilai baris/total di-format formatIDR, jadi popup 'Klik per kampanye' menampilkan 'total Rp 3.417' & 'Rp 2.311' untuk jumlah klik (juga impresi & lead platform). Butuh format non-uang.", "selector": "[data-testid=finance-kpi-dialog]", "priority": "MEDIUM"},
+      {"component": "UnitsTab chip status", "issue": "data-testid chip adalah 'masterplan-unit-filter-status', bukan 'unit-filter-status' seperti spesifikasi; selain itu testId yang sama dipakai untuk chip DAN ReferenceSelect status (ambigu untuk otomasi).", "selector": "[data-testid=masterplan-unit-filter-status]", "priority": "LOW"},
+      {"component": "UnitsTab", "issue": "Setelah chip status ganda diklik (filter hilang, tabel kembali 18 unit), query param URL masih ?tab=units&status=booked,sold,handed_over — refresh/berbagi tautan akan memfilter ulang.", "selector": "[data-testid=masterplan-unit-filter-status]", "priority": "LOW"},
+      {"component": "ProjectDetailPage/UnitsTab", "issue": "Console error React: 'In HTML, <option> cannot be a child of <span> ... hydration error' saat tab Unit dirender (jejak ke ProjectDetailPage.js:119 TabsContent value=units).", "selector": "-", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Atribusi & CAPI — kartu Biaya iklan terpetakan", "issue": "Angka kartu (Rp 111 jt) berbeda 7x dari popup rincian (Rp 15.830.000) karena bug totals.spend di backend attribution", "affected_selectors": ["[data-testid=attr-kpi-card-spend]", "[data-testid=finance-kpi-dialog]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_p93.py", "/app/test_reports/pytest/p93.xml"],
+  "action_items": [
+    "Perbaiki ads_report.attribution: totals.spend (dan cpl) harus memakai campaign_id unik supaya cocok dengan /api/ads/performance & drilldown ads:spend (HIGH)",
+    "Beri penanda satuan pada drilldown metrik non-uang (clicks/impressions/leads_platform) dan render tanpa 'Rp' di DrilldownDialog",
+    "Selaraskan data-testid chip status unit ('unit-filter-status' vs 'masterplan-unit-filter-status') dan pisahkan testId chip vs select",
+    "Sinkronkan URL (hapus param status) saat chip status ganda dibersihkan",
+    "Bereskan warning nesting/hydration <option> di dalam <span> pada tab Unit"
+  ],
+  "critical_code_review_comments": [
+    "ads_report.attribution menempelkan spend kampanye ke setiap grup (source, campaign) lalu menjumlahkan seluruh baris — double counting; sumber kebenaran biaya harus per campaign_id unik.",
+    "DrilldownDialog memaksa formatIDR untuk semua amount; kontrak drilldown sebaiknya membawa tipe nilai (currency/count/percent).",
+    "kpi_drilldown_ext.project() tanpa project_id tetap 200 dengan 0 baris (terkontrol, tidak 500) — dapat diterima, tapi lebih baik 400 dengan pesan jelas."
+  ],
+  "updated_files": ["/app/backend/tests/test_p93.py"],
+  "success_rate": {"backend": "94% (17/18)", "frontend": "90%"},
+  "seed_data_creation": "Tidak ada data baru dibuat; hanya baca (drilldown/report/unit listing).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026; sales@sipro.co.id / Sipro#2026 (RBAC: sales -> ads:spend 403, project:available 200)",
+  "context_for_next_testing_agent": "Selektor benar: baris popup = [data-testid^='finance-kpi-row-'] (bukan drilldown-row-*), dialog = [data-testid=finance-kpi-dialog], tombol tabel terfilter = [data-testid=finance-kpi-open-all], CSV = [data-testid=drilldown-csv-btn]. Kartu Beranda = [data-testid^='kpi-card']. Chip status unit = [data-testid=masterplan-unit-filter-status]. Satu tes backend sengaja gagal (TestAdsDrilldown::test_ads_attribution_spend_matches_card) sampai bug double-count spend atribusi diperbaiki; setelah fix, tes ini harus lulus.",
+  "rca_of_the_issue": "Di ads_report.attribution, rows dikelompokkan per (source, campaign_name) dan setiap baris level campaign diberi r['spend'] = spend_map[campaign_id]['spend']. Karena satu kampanye muncul di banyak sumber (7 baris untuk cluster-a-meta & harmony-google-brand), totals.spend = jumlah seluruh baris = 7x biaya sebenarnya (110.810.000 vs 15.830.000). Reproduksi: GET /api/ads/attribution lalu bandingkan totals.spend dengan GET /api/drilldown/ads:spend?ctx=attribution&date_from=..&date_to=.. atau lihat kartu 'Biaya iklan terpetakan' vs popup rinciannya. Mitigasi: jumlahkan spend hanya sekali per campaign_id unik dan hitung ulang cpl."
+}

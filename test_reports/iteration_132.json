@@ -1,0 +1,59 @@
+{
+  "summary": "Fase 82 (Kas & Bank) diuji end-to-end. Backend: 14/14 pytest lulus (tests/test_p82_cash_bank.py + tests/test_p82_ext.py baru) — sub-akun GL per rekening, saldo awal terjurnal (Cr 3-1950), posisi kas, buku kas/bank + CSV, transfer internal (validasi jenis/saldo/SoD, approve/reject), RBAC (sales 403, finance tanpa approve 403), AR receipt & AP payment mendarat di sub-akun rekening pilihan, trial balance balanced dengan 1-1100/1-1200 nol. Frontend: Posisi Kas, Buku Kas & Bank (ganti rentang + unduh CSV), approve/reject transfer oleh owner (saldo Kas Besar +1.000.000, bank −1.002.500, jurnal JV/2026/00088), Master Rekening (buat/duplikat error/set default/ubah nama), AR receipt via UI ke Rekening Escrow → jurnal debit 1-1202 & muncul di Buku Escrow, pemilih rekening di dialog AP & Setor Pajak, RBAC sales (menu tersembunyi + pesan akses ditolak). DITEMUKAN 3 bug frontend: RupiahInput dipakai dengan signature onChange salah di TransferDialog & AccountDialog (nominal transfer & saldo awal TIDAK BISA diisi → 400), dan pemilih rekening Pencairan Kas Bon tidak ikut berganti ke jenis kas (nilai referensi 'kas' vs perbandingan 'cash').",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cash-bank/position", "issue": "Total Kas & Bank / Saldo Bank ikut menjumlahkan rekening NONAKTIF (mis. 2 rekening uji nonaktif @Rp 2.000.000 masih masuk total). Secara akuntansi saldonya nyata, tapi kartu ringkasan sebaiknya memisahkan atau memberi catatan."},
+      {"endpoint": "cash_bank.balances()/book()", "issue": "Menghitung saldo dengan memindai semua journal_entries di Python (find + loop, book pakai to_list(20000)). Akan lambat saat volume jurnal besar — pertimbangkan aggregation pipeline $unwind/$group."},
+      {"endpoint": "DELETE /api/cash-bank/accounts/{id}", "issue": "Tidak ada endpoint hapus; rekening uji hanya bisa dinonaktifkan sehingga master mudah tercemar data uji (saat ini ada 3 rekening 'Rekening Uji …' nonaktif dari gate/QA)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "components/cashBank/TransferDialog.js:82,86", "issue": "BLOCKER: RupiahInput memanggil onChange dengan objek event, tetapi dipakai `onChange={(v) => set('amount', v)}`. Akibatnya field Nominal & Biaya tetap kosong saat diketik (formatRupiahDigits menerima objek), tombol Ajukan tetap aktif (Number(obj)=NaN), dan POST /cash-bank/transfers gagal 400 'amount: Input should be a valid integer'. Transfer internal MUSTAHIL dibuat dari UI. Fix: `(e) => set('amount', e.target.value)` (pola sama seperti komponen lain).", "selector": "cashbank-transfer-amount / cashbank-transfer-fee", "priority": "CRITICAL"},
+      {"component": "components/cashBank/AccountDialog.js:103", "issue": "HIGH: Bug identik pada Saldo awal (`onChange={(v) => set('opening_balance', v)}`). Mengetik saldo awal 2.000.000 → field tetap kosong dan submit gagal 400 'opening_balance: Input should be a valid integer'. Pendaftaran rekening hanya berhasil bila field saldo awal tidak disentuh (terverifikasi: dibuat tanpa saldo awal → toast 'akun GL 1-1207' OK).", "selector": "cashbank-account-opening", "priority": "HIGH"},
+      {"component": "components/pettyCash/DisburseAdvanceDialog.js:76", "issue": "HIGH: `kind={source === 'cash' ? 'cash' : 'bank'}` tidak pernah bernilai cash karena referensi cash_source memakai value 'kas' (label 'Kas (tunai)'). Setelah memilih 'Kas (tunai)', pemilih tetap menampilkan/mengirim rekening BANK (Bank Mandiri · Rekening Operasional) → pencairan kas bon tunai akan dijurnal keluar dari rekening bank. Fix: bandingkan dengan 'kas' (atau ('kas','cash','tunai')).", "selector": "pc-dis-cash-account", "priority": "HIGH"},
+      {"component": "components/cashBank/CashAccountSelect.js", "issue": "Saat data belum termuat, trigger menampilkan placeholder menyesatkan 'Belum ada rekening aktif' (terlihat di dialog AR & AP sebelum fetch selesai). Sebaiknya tampilkan 'Memuat…' selama request berjalan.", "selector": "ar-receipt-cash-account / ap-pay-cash-account", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Transfer internal (buat dari UI)", "issue": "Tidak dapat diselesaikan dari UI karena bug RupiahInput di atas; alur approve/reject/posting jurnal & mutasi saldo diverifikasi memakai transfer yang dibuat via API (owner approve → status Diposting JV/2026/00088, Kas Besar +1.000.000, Rekening Operasional −1.002.500; reject via window.prompt → status Ditolak + alasan tersimpan).", "affected_selectors": ["cashbank-transfer-amount", "cashbank-transfer-submit"]},
+      {"flow": "Pencairan kas bon", "issue": "Sumber kas 'Kas (tunai)' tidak menyinkronkan pemilih rekening (lihat ui_bugs) — risiko jurnal salah rekening.", "affected_selectors": ["petty-cash-disburse-source", "pc-dis-cash-account"]}
+    ],
+    "design_issues": [
+      {"screen": "Perpajakan → dialog 'Perbarui Status Pajak' (status Disetor)", "issues": ["Isi dialog melebihi lebar DialogContent: Select status, trigger 'Setor dari rekening' (teks panjang: bank · nama · saldo · DEFAULT) dan tombol Simpan terpotong di sisi kanan. Tambahkan min-w-0 + truncate pada isi SelectItem/trigger CashAccountSelect atau lebarkan dialog."]},
+      {"screen": "Kas & Bank — Buku Kas & Bank / dialog transfer & rekening", "issues": ["Filter tanggal memakai <Input type=\"date\"> (date picker native browser), bukan komponen kalender shadcn seperti halaman lain — tidak konsisten."]},
+      {"screen": "Kas & Bank — Posisi Kas", "issues": ["Rekening berstatus 'nonaktif' tetap tampil di tabel dan ikut kartu total, tanpa filter aktif/nonaktif."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p82_ext.py",
+    "/app/backend/tests/test_p82_cash_bank.py",
+    "/app/backend/tests/qa_p82_make_pending.py",
+    "/app/backend/tests/qa_p82_verify_receipt.py",
+    "/app/test_reports/pytest/p82_final.xml"
+  ],
+  "action_items": [
+    "Perbaiki pemakaian RupiahInput di TransferDialog.js (amount, fee) dan AccountDialog.js (opening_balance) → `onChange={(e) => set(field, e.target.value)}`; tanpa ini transfer internal & saldo awal tidak bisa diinput dari UI.",
+    "Perbaiki DisburseAdvanceDialog.js: bandingkan source dengan 'kas' (nilai referensi cash_source) agar pemilih rekening berganti ke jenis kas.",
+    "Tambahkan guard di TransferDialog/AccountDialog agar tombol submit disabled bila nominal bukan angka valid (saat ini Number(NaN) meloloskan submit ke 400).",
+    "Rapikan overflow dialog 'Perbarui Status Pajak' (dan audit dialog lain yang memuat CashAccountSelect) dengan min-w-0/truncate.",
+    "Pertimbangkan filter/penanda rekening nonaktif di Posisi Kas serta status 'Memuat…' pada CashAccountSelect."
+  ],
+  "critical_code_review_comments": [
+    "RupiahInput mengirim objek event-like; dua komponen Fase 82 memakainya sebagai nilai mentah — cari pola `RupiahInput ... onChange={(v) =>` di seluruh repo (hanya cashBank yang salah) dan pertimbangkan menambahkan prop `onValueChange` agar API-nya tidak ambigu.",
+    "Perbandingan sumber kas hard-coded ('cash') tidak sinkron dengan master referensi ('kas'); gunakan konstanta bersama agar tidak drift.",
+    "cash_bank.balances()/position()/book() memindai koleksi journal_entries penuh di Python; migrasikan ke aggregation agar tidak menjadi hotspot saat data bertambah."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p82_ext.py (baru)",
+    "/app/backend/tests/qa_p82_make_pending.py (baru, helper seed transfer pending)",
+    "/app/backend/tests/qa_p82_verify_receipt.py (baru, verifikasi jurnal kuitansi UI)"
+  ],
+  "success_rate": {"backend": "100% (14/14 pytest)", "frontend": "~75% (3 dari 12 alur UI bermasalah: input nominal transfer, saldo awal rekening, sinkronisasi jenis rekening kas bon)"},
+  "seed_data_creation": "Rekening uji: 'Rekening Uji QA2' (QA82-*) x2 & 'Rekening Uji QA UI Edit' (UI82*) — sudah dinonaktifkan (tidak ada endpoint delete, saldo awal 2jt sudah terjurnal sehingga tetap ada di neraca). Transfer TRF/2026/0008 (ditolak via UI) & TRF/2026/0009 (disetujui via UI, JV/2026/00088). Kuitansi AR Rp 10.000 ke Rekening Escrow (JV/2026/00089) + pembayaran AP Rp 10.000 dari Rekening Escrow. Kas bon KB/2026/0003 dibuat+approve untuk uji dialog lalu dibatalkan.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "finance@sipro.co.id / owner@sipro.co.id / sales@sipro.co.id, password Sipro#2026 (semua valid)",
+  "context_for_next_testing_agent": "Jalankan pytest dengan REACT_APP_BACKEND_URL di environment (conftest default URL-nya usang): `cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_p82_cash_bank.py tests/test_p82_ext.py -q`. Untuk uji UI approve transfer, buat pending dulu: `python tests/qa_p82_make_pending.py 2` (dibuat oleh finance agar owner bisa approve — SoD). Setelah bug RupiahInput diperbaiki, ulangi: dialog transfer (ketik 1000000 pada cashbank-transfer-amount, cek input_value menampilkan '1.000.000', Ajukan → status Menunggu) dan dialog rekening baru dengan saldo awal (toast harus menyebut akun GL 1-12xx dan baris menampilkan label 'dijurnal'). Untuk kas bon, dialog Cairkan hanya muncul bila ada kas bon status 'approved' (buat via POST /api/petty-cash/advances lalu approve oleh user lain).",
+  "rca_of_the_issue": "RupiahInput (components/ui/rupiah-input.jsx) memanggil onChange dengan objek event-like {target:{value:'digit'}}. Komponen Fase 82 (TransferDialog, AccountDialog) memperlakukan argumen itu sebagai string sehingga state menyimpan objek: value yang dirender jadi '' (formatRupiahDigits(String(obj)) → tanpa digit) dan Number(obj)=NaN meloloskan validasi disabled, lalu body JSON mengirim null → FastAPI/Pydantic menolak 400 'Input should be a valid integer'. Reproduksi: /cash-bank?tab=transfers → Transaksi Baru → ketik nominal → field tetap kosong → Ajukan → error merah. Bug ketiga: components/pettyCash/DisburseAdvanceDialog.js membandingkan source dengan 'cash' padahal referensi cash_source mengembalikan 'kas', sehingga kind CashAccountSelect selalu 'bank'."
+}

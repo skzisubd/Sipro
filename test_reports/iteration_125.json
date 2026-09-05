@@ -1,0 +1,49 @@
+{
+  "summary": "Fase 75 diuji end-to-end. BACKEND: test_p75_allin_kpr.py (4) lulus ulang + test_p75_extra.py baru (3) lulus — costs all-in → developer_borne (costs_total 0, developer_borne_total 50jt), tanpa all-in → pass_through, add-on per m2 (qty × harga master), tahap KPR berkas_lengkap kini 200 (bug 'sudah dilewati' hilang), pencairan tanpa amount → 400 'Nominal…', pencairan sebagian → kuitansi metode 'kpr' terbit, piutang berkurang tepat, jurnal GL kas masuk seimbang (source_type=receipt). FRONTEND: baris survei di tab Survey adalah <button> dan membuka AppointmentDetailSheet (judul, status, select ubah status) lalu tertutup normal; dialog SPR lebar 978px (sm:max-w-5xl) 2 kolom rapi di 1440 & 1920; add-on menampilkan harga master (Kitchen set Rp 18.500.000) + subtotal qty (Kelebihan tanah 3 m2 = Rp 6.000.000) + total Rp 24.500.000; seksi Biaya transaksi: BPHTB 42.5jt + all-in → 'Total biaya: Rp 42.500.000 · ditanggung developer' dan 'Total dibayar pembeli' = harga penawaran (Rp 674.500.000); tanpa all-in → Rp 692.500.000; submit Reservasi berhasil (toast) dan deal.costs tersimpan (verifikasi API). KPR UI: 'Catat Berkas lengkap' sukses (toast 'Tahap KPR diperbarui', stage data-done=true); dialog Pencairan menampilkan 'Nominal dicairkan bank (Rp) — wajib' + keterangan pembukuan, submit kosong ditolak dengan toast jelas, dengan nominal → kartu kpr-disbursement-accounting hijau menampilkan KWT/2026/0028 & keterangan piutang berkurang. Regresi: QuotationForm tanpa showCosts tidak menampilkan seksi biaya, halaman Agenda & Survey normal, tidak ada console error merah. SATU BUG BARU DITEMUKAN: teks JSX bocor ') : null}' tampil di UI pada semua konsumen QuotationBreakdown.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/finance/ar/{deal_id}", "issue": "Sesekali outstanding=0 beberapa detik setelah convert/skema (pembuatan jadwal tagihan tampak async). Risiko: pencairan KPR yang dicatat tepat setelah akad bisa masuk sebagai titipan, bukan pelunasan piutang. Perlu jaminan tagihan sudah terbit sebelum pencairan."},
+      {"endpoint": "GET /api/gl/journals", "issue": "Jurnal kuitansi baru muncul ~1 detik setelah kuitansi terbit (posting via event/worker); tidak ada filter by source_id sehingga klien harus memuat 100 baris untuk mencari jurnal sebuah kuitansi."},
+      {"endpoint": "GET /api/quotations/options", "issue": "Unit pada options tidak menyertakan field 'status' (sudah difilter available) — menyulitkan klien/test memverifikasi ketersediaan."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "QuotationBreakdown", "issue": "Kondisional JSX rusak: blok 'Perkiraan pajak & biaya' (baris 157-163 frontend/src/components/quotations/QuotationBreakdown.js) kehilangan pembukanya, sehingga literal ') : null}' TAMPIL sebagai teks di UI. Terlihat di ReserveDialog, QuotationForm (Buat penawaran), QuotationDetailSheet, dan DealPricingSheet. Perbaikan: bungkus <p> pajak dengan kondisi (mis. {taxes.ppn != null ? ( ... ) : null}).", "selector": "[data-testid=\"reserve-breakdown\"] / [data-testid=\"quotation-dialog\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog tahap KPR (KprPanel)", "issues": ["Input 'Tanggal' memakai date picker bawaan browser (mm/dd/yyyy), bukan komponen kalender shadcn — tidak konsisten dengan sistem desain & format tanggal Indonesia"]},
+      {"screen": "ReserveDialog (SPR)", "issues": ["Setelah mengubah nilai biaya/checkbox all-in, rincian (calc) direset sehingga kotak 'reserve-costs-summary' hilang sampai 'Hitung rincian harga' ditekan lagi — perlu petunjuk kecil 'hitung ulang' agar pengguna tidak menyangka biaya hilang"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p75_allin_kpr.py",
+    "/app/backend/tests/test_p75_extra.py",
+    "/app/backend/tests/seed_p75_ui.py",
+    "/app/test_reports/pytest/p75_results.xml"
+  ],
+  "action_items": [
+    "PRIORITAS: perbaiki kondisional rusak di QuotationBreakdown.js baris ~157-163 agar teks ') : null}' tidak tampil (memengaruhi penawaran, SPR, detail penawaran, dan sheet harga deal)",
+    "Pertimbangkan mengganti input tanggal native di KprPanel dengan komponen kalender shadcn",
+    "Pastikan jadwal tagihan/AR sudah terbit sebelum pencairan KPR bisa dicatat (atau tampilkan peringatan bila outstanding masih 0) agar dana tidak jadi titipan",
+    "Opsional: tambah filter source_id pada GET /api/gl/journals dan sertakan status unit pada /api/quotations/options"
+  ],
+  "critical_code_review_comments": [
+    "QuotationBreakdown.js: JSX conditional tidak berpasangan (') : null}' tanpa pembuka) — bukti bahwa render breakdown tidak punya gate/uji snapshot; tambahkan uji UI ringan pada komponen ini",
+    "kpr_engine pencairan bergantung pada AR yang dibuat asinkron; tambahkan pengecekan invoice/outstanding sebelum apply_receipt agar pembukuan tidak jatuh ke titipan",
+    "Unit demo 'available' habis dipakai uji (seed hanya 8 unit); seed sebaiknya menyediakan unit uji khusus agar pengujian reservasi tidak menghabiskan data demo"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p75_extra.py",
+    "/app/backend/tests/seed_p75_ui.py"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "~90% (6/7 alur lulus; 1 bug render teks JSX)"},
+  "seed_data_creation": "12 unit baru 'UJI-01..UJI-12' (Tipe Uji 45, Rp 650jt) pada proyek pertama via POST /api/projects/{id}/units karena unit available demo sudah habis. Lead/deal/kontrak uji berprefiks 'Uji …' (Uji Allin, Uji PassThru, Uji UI KPR A/B). Kontrak KPR uji: KTR/2026/0020 (berkas_lengkap→selesai saat uji UI), KTR/2026/0021 (pencairan dicatat Rp 650jt, kuitansi KWT/2026/0028).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Jalankan backend: export REACT_APP_BACKEND_URL dari /app/frontend/.env lalu pytest tests/test_p75_allin_kpr.py tests/test_p75_extra.py -n 1. Unit available demo mudah habis — pakai POST /api/projects/{project_id}/units (prefix UJI) untuk menambah. Untuk uji UI KPR pakai seed tests/seed_p75_ui.py (cetak 2 id kontrak: A=berkas_lengkap, B=pencairan) lalu buka /customers/{customer_id} → tab 'Kontrak & Legal' (KprPanel TIDAK dirender pada ContractPanel compact di tab lead 'Unit & SPR'). Bug tersisa: literal ') : null}' di QuotationBreakdown.",
+  "rca_of_the_issue": "Teks ') : null}' berasal dari suntingan QuotationBreakdown.js saat menambahkan pembungkus hideKpr: pembuka kondisional blok pajak terhapus sehingga sisa ekspresi ') : null}' diperlakukan Babel sebagai teks JSX dan tampil di semua tempat yang memakai komponen breakdown. Perbaikannya satu baris (kembalikan pembuka kondisional)."
+}

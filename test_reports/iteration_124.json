@@ -1,0 +1,37 @@
+{
+  "summary": "Fase 74 (Studio Site Plan: mode warna persisten, palet warna per organisasi, dua status paralel penjualan/pembangunan) diuji penuh — backend + frontend. Backend: 7 tes baru (test_p74_palette.py) + regresi test_p73_extra.py & test_p72_studio.py → 15/15 lulus. Frontend (owner & sales): dropdown 4 mode, legenda build (total 11 = jumlah kavling), legenda dua kelompok pada mode Gabungan, stroke-width 4 berwarna bucket, persistensi localStorage 'sipro.studio.colorMode' setelah reload dan lintas proyek, dialog palet (label 'Booking'→'Booking Fee' + fill #ffd6a5 → kanvas/legenda/persisten dari server), reset kelompok kembali ke bawaan (#e0e7ff/'Booking'), ekspor PNG mode dual (siteplan-4438bb73-dual.png, 117 KB), RBAC sales read-only (semua input & Simpan disabled). Tidak ada error konsol merah. Palet organisasi sudah dikembalikan ke bawaan (GET /palette = {}).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/site-plan-studio/palette", "issue": "Body tanpa field 'palette' dijawab 400 (detail 'palette: Field required') bukan 422 — konsisten dengan handler global app, hanya catatan"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "StudioToolbar — Select mode warna", "issues": ["Label opsi 'Gabungan (isi = penjualan, garis = pembangunan)' terpotong pada trigger w-[15rem]; teks hint dua baris membuat trigger padat. Pertimbangkan label pendek ('Gabungan') dengan hint hanya di dropdown."]},
+      {"screen": "PaletteDialog (peran sales / read-only)", "issues": ["Tidak ada penjelasan mengapa semua input & tombol Simpan disabled; tambahkan catatan 'Hanya bisa melihat — perlu izin ubah proyek'.", "Input label disabled tampil abu-abu tipis sehingga kontras teks rendah."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p74_palette.py", "/app/backend/tests/test_p73_extra.py", "/app/test_reports/pytest/p74.xml"],
+  "action_items": [
+    "Opsional: perpendek label mode 'Gabungan' pada trigger Select agar tidak terpotong",
+    "Opsional: tambahkan catatan read-only pada dialog Atur warna untuk peran tanpa izin ubah",
+    "Catatan kebersihan data: tests/test_p73_extra.py membuat proyek 'Uji Studio Extra …' yang tidak bisa dihapus (tidak ada DELETE /api/projects) — proyek uji menumpuk di daftar proyek org demo"
+  ],
+  "critical_code_review_comments": [
+    "save_palette() sudah menyaring #rrggbb, grup tak dikenal, dan memangkas label (40 char) — aman terhadap input bebas; verified via test",
+    "Route /palette dideklarasikan sebelum /{project_id} (baris 76-90 router) sehingga tidak tertangkap path param — verified",
+    "lotStyle() mode 'dual' selalu memberi strokeWidth 4 (juga saat progres 0%, warna garis bucket b0 abu-abu); jika niatnya hanya kavling berprogres yang menonjol, garis 0% sebaiknya tetap 1.4",
+    "units_light() memproyeksikan tanpa _id dan menyertakan construction_progress — verified pada payload studio"
+  ],
+  "updated_files": ["/app/backend/tests/test_p74_palette.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% skenario Fase 74 lulus"},
+  "seed_data_creation": "Tidak ada seed baru. Palet organisasi diubah sementara lalu direset ke {} (bawaan) melalui UI + fixture pytest.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@sipro.co.id / Sipro#2026, sales@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Jalankan pytest dengan REACT_APP_BACKEND_URL di env (test_p73_extra.py & test_p74_palette.py membacanya; tanpa env → MissingSchema). Proyek seed studio: 4438bb73-9d3c-41fa-a084-311885c08e4d (11 kavling: A-01 booked 33%, A-02 booked 10%, A-04 2%, A-06 sold, B-01 handed_over, sisanya available 0%). Untuk login berbeda peran di Playwright, bersihkan localStorage dulu — /login akan redirect ke / bila sesi masih aktif. Input type=color diubah dengan native value setter + event 'input'. Palet dikembalikan ke bawaan setelah tes.",
+  "rca_of_the_issue": "Tidak ada bug fungsional ditemukan pada Fase 74. Satu kegagalan awal tes hanya karena asumsi status 422; app mengembalikan 400 dengan detail jelas, jadi asertsi tes disesuaikan (400/422)."
+}

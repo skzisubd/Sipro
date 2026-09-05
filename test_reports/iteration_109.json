@@ -1,0 +1,33 @@
+{
+  "summary": "Tested the NEW manual WhatsApp bypass feature (chat outside system + mandatory photo proof) end-to-end. Backend: created /app/backend/tests/test_wa_manual_p29c.py with 10 pytest cases (happy path lifecycle effect, persistence via GET lead/wa/lifecycle, idempotent first_contact, validation: empty evidence, short note, non-image (PDF) evidence 400, fake file id 404, unknown lead 404, no side-effects on failure, plus in-system WA send regression) — 10/10 pass. Frontend: Playwright E2E on real preview URL — logged in as superadmin, created 2 fresh acquisition leads via API with session cookie, opened /leads/{id} → tab Percakapan; amber collapsible toggle present, controls hidden until expanded, evidence input accept=image/*, submit disabled until note + >=1 photo, upload PNG + submit → success toast 'Chat WA manual tercatat dengan bukti foto…', amber bubble with badge 'MANUAL · di luar sistem' + 'Bukti 1' link (signed /api/files URL), header stage flipped Akuisisi→Nurturing, Ringkasan shows 'Kontak pertama tercatat' + Kontak pertama timestamp + waktu respons. In-system template send regression also OK (emerald bubble, simulation toast, no manual badge). No console errors, no error elements.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/leads/{id}/wa/manual", "issue": "Pydantic validation errors (empty evidence_file_ids, note<3 chars) return HTTP 400 (global validation handler rewrites 422→400 with friendly Indonesian detail), not 422 as stated in the test request. Behaviour is app-wide and consistent; only the spec expectation differs — no fix needed unless 422 is required."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Lead profile → Percakapan → manual WA section", "issues": ["EvidenceUploader helper copy says '0/3 lampiran · gambar atau PDF · maks 8MB' while this uploader only accepts image/* and the backend rejects PDF with 400 'Bukti wajib berupa FOTO…'. Misleading copy — allow overriding the hint text (e.g. 'hanya foto/tangkapan layar').", "In-system template message rendered with unreplaced placeholder '{{date}}' ('mengingatkan jadwal survey unit pada {{date}}') — pre-existing template substitution gap (only {{nama}}/{{name}} replaced), not part of this feature but visible to users."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_wa_manual_p29c.py", "/app/test_reports/pytest/wa_manual.xml"],
+  "action_items": [
+    "Optional: customize evidence hint text for the manual WA uploader so it does not promise PDF support (backend rejects non-image).",
+    "Optional (pre-existing): extend WA template variable substitution beyond {{nama}}/{{name}} so {{date}} is not sent literally."
+  ],
+  "critical_code_review_comments": [
+    "log_manual_wa validates file ownership by org and content_type before any write — good; note that duplicate ids in payload are collapsed via set(ids) comparison, so a payload with the same id twice passes and stores duplicates. Consider de-duplicating evidence_file_ids in the model.",
+    "Manual message reuses conversations doc with mode='manual' only when creating a new conversation; an existing simulation conversation keeps mode='simulation' while carrying manual messages — message-level mode flag is what UI uses, so acceptable, but conversation-level mode can mislead future reports."
+  ],
+  "updated_files": ["/app/backend/tests/test_wa_manual_p29c.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "Created 4 test leads (TEST_WA_Manual, TEST_WA_Manual_UI, TEST_WA_InSystem_UI) with small PNG/PDF evidence files owner_type=lead_wa_manual. Left in DB for inspection.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 (login returns access_token AND sets cookie; pytest uses Bearer token)",
+  "context_for_next_testing_agent": "Manual WA bypass (POST /leads/{id}/wa/manual) fully verified backend+frontend in iteration 109. Reusable regression suite: /app/backend/tests/test_wa_manual_p29c.py (runs in ~6s, self-contained, own login fixture using access_token). Frontend testids: lead-wa-manual-toggle/note/evidence-input/submit/badge inside lead-wa-panel on tab tab-page-tab-percakapan of /leads/{id}. Note global handler converts pydantic 422 → 400.",
+  "rca_of_the_issue": "No functional defect found. The only spec mismatch (422 vs 400) traces to the app-wide RequestValidationError handler that returns 400 with a human-readable Indonesian detail string."
+}

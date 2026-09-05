@@ -1,0 +1,37 @@
+{
+  "summary": "P112 tested end-to-end (backend pytest 14/14 + Playwright UI). PASS: searchable RelatedRecordCombobox (filter 'A-0' returns only A-0x units, no uuid false-positives), refresh-on-open (lead created via API appears in combobox without page reload), 'Buat tugas' buttons on /units/:id, /customers/:id, /projects/:id with preset relation prefilled and relation persisted (verified via DB + task detail sheet 'Kaitan: Unit: A-01 — Blok A' + task-link-button), RBAC matrix screen (revoke leads x sales -> save toast '1 perubahan hak akses tersimpan') and sidebar hiding (sales no longer sees nav-item-leads while other menus intact; finance/sales default nav sane, no empty groups), regressions (task without relation OK, submit blocked with 'Pilih record terkaitnya dari daftar.', POST /api/work/tasks with fake customer id -> 404, sales gets 403 on /api/leads while revoked and 403 on /api/admin/permissions). 2 functional defects found (see below). All TEST_P112 data purged and leads x sales matrix restored to original ['create','update','view_own'] (verified via GET /api/admin/permissions and sales sidebar).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/work/tasks/{id}, DELETE /api/leads/{id}", "issue": "No delete endpoints exist (405). Test data can only be cleaned via direct DB access — acceptable by design, but test suites must purge via Mongo (see tests/cleanup_p112.py)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminPermissions ('Kembalikan sel ini')", "issue": "After a revocation is SAVED, clicking 'Kembalikan sel ini' is a no-op: resetCell() restores the cell to server.matrix (which now holds the saved revocation), so `changes` stays empty and [data-testid=admin-permissions-save] remains disabled. There is no UI way to undo a saved revocation / return a cell to code-default+inheritance; admin must manually re-tick every action. Fix: reset should DELETE the override key (fall back to DEFAULT_PERMISSIONS/inheritance) and be diffed against the saved matrix, or add a separate 'Kembalikan ke bawaan' action.", "selector": "[data-testid='admin-permissions-cell-reset']", "priority": "HIGH"},
+      {"component": "CreateTaskDialog", "issue": "Reopen after cancelling with a relation type still selected leaves the record combobox permanently empty. On open the code does setRelRecords({}) but only refetches when `preset?.type` exists; form.rel_type is retained (e.g. 'Unit') and pickRelType is not re-run, so the combobox shows 'Tidak ada data yang cocok.' Repro: open Tugas Baru -> type=Unit -> Batal -> reopen -> open record combobox = 0 options. Fix: on open, refetch records for form.rel_type (or reset form.rel_type/rel_id when there is no preset).", "selector": "[data-testid='work-create-task-related-record-select']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Hak Akses (RBAC) cell editor", "issues": ["Action checkbox labels are truncated inside the narrow inline editor ('tugask', 'verifika', 'terobo', 'batalkan' clipped) — grid columns too narrow for Indonesian labels; widen the editor popover or use single column"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p112_combobox_rbac.py", "/app/backend/tests/cleanup_p112.py", "/app/test_reports/pytest/p112_results.xml"],
+  "action_items": [
+    "Fix 'Kembalikan sel ini' so a SAVED revocation can be reverted from the UI (delete override key + diff vs saved matrix); Save button must enable.",
+    "Fix CreateTaskDialog refresh-on-open: refetch records for the retained form.rel_type (or clear rel_type) when the dialog reopens without preset.",
+    "Optional: widen RBAC cell editor so action labels are not clipped."
+  ],
+  "critical_code_review_comments": [
+    "CreateTaskDialog useEffect deps omit `preset` while using it (eslint-disabled) — preset id change on the same mounted page (e.g. route param change) would keep the stale relation.",
+    "AdminPermissions.resetCell semantics conflate 'undo unsaved edit' with 'restore default'; the label 'Kembalikan sel ini' promises the latter."
+  ],
+  "updated_files": ["/app/backend/tests/test_p112_combobox_rbac.py", "/app/backend/tests/cleanup_p112.py"],
+  "success_rate": {"backend": "100%", "frontend": "80%"},
+  "seed_data_creation": "Temporary TEST_P112 tasks/leads created and fully purged (tests/cleanup_p112.py). RBAC matrix leads x sales revoked then restored to original ['create','update','view_own'].",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "superadmin@sipro.co.id / sales@sipro.co.id / finance@sipro.co.id — Sipro#2026",
+  "context_for_next_testing_agent": "Backend suite: /app/backend/tests/test_p112_combobox_rbac.py (14 tests, all pass) — covers combobox data sources, relation presets, 404 on fake related id, lead-appears-in-list, RBAC matrix shape, revoke+restore of leads x sales with /auth/me + /api/leads 403 check. Effective matrix shape is {perms, sources, revoked, inherited_from} — not a plain list. No DELETE endpoints for tasks/leads; purge via tests/cleanup_p112.py. Record select is a Button+Popover+cmdk combobox: click [data-testid=work-create-task-related-record-select], type into work-create-task-related-record-search, options are work-create-task-related-record-option. Permission changes only reach the frontend after re-login (localStorage.clear() + login).",
+  "rca_of_the_issue": "1) AdminPermissions.resetCell copies the value from server.matrix; once the revocation is persisted, server.matrix already contains leads.sales=[] so the draft is identical and the `changes` memo yields [], keeping Simpan disabled — the restore path required by the spec cannot be completed in the UI (I restored the demo data by manually re-ticking view_own/create/update and saving, verified via API). 2) CreateTaskDialog's open effect wipes relRecords but only refetches when a preset exists, so a retained form.rel_type has no record list on reopen."
+}

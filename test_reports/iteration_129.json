@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only verification of the new masked Rupiah input (RupiahInput) as super_admin. Mask behaviour on cost-pay-amount: type '12a5000b00' -> '12.500.000' (letters rejected), clear -> empty, '007' -> '7', typing '1.500.000' -> '1.500.000', playwright fill('2500000') -> '2.500.000', 'Rp' prefix span rendered, data-rupiah-input present. End-to-end saves all correct: (a) Kontrak KPR -> Biaya transaksi -> 'Catat beban (AP)' with 1.250.000 + vendor -> toast 'Beban penjualan dicatat lewat AP.' and panel shows 'dibebankan Rp 1.250.000' + row badge 'beban dicatat (AP)'; JV/2026/00063 Rp 1.250.000 appears in Buku Besar. (b) /accounting -> Jurnal Umum -> Jurnal Manual: debit 1.000.000 / kredit 1.000.000 shown masked, balance line 'Seimbang', posting succeeded -> JV/2026/00064 Rp 1.000.000. (c) /petty-cash -> Ajukan Kas Bon 750.000 -> saved, row KB/2026/0003 Rp 750.000 and 'Menunggu Persetujuan Rp 750.000'. (d) Master Proyek -> unit A-03 Ubah -> price prefilled '850.000.000' masked, changed to 777.000.000 -> toast 'Unit A-03 diperbarui.' and card shows Rp 777.000.000 (booked units A-01/A-02 correctly keep the price field disabled). (e) Konfigurasi -> Skema Pembayaran -> Ubah: percent/remaining basis renders plain type=number (%), switching basis to 'Nominal tetap (Rp)' swaps to RupiahInput (data-rupiah-input) and typed 25000000 -> '25.000.000'; Pratinjau harga jual field also masked (850.000.000). Regression: ReserveDialog booking fee prefilled '1.000.000' masked, editable to 5.000.000, KPR tenor/bunga/DP still type=number, Reservasi button enabled; ar-receipt-amount prefilled '650.000.000' masked and editable; ap-pay-amount prefilled '1.250.000' masked. No red console errors and NO 'controlled to uncontrolled' React warnings on any visited page (contract, accounting, petty-cash, config, projects, deals, finance).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AddJournalDialog (Jurnal Manual, grid 12 kolom)", "issues": ["Kredit column is sm:col-span-2 while Debit is sm:col-span-3; with the new 'Rp' prefix (pl-9) the credit value is visually clipped ('Rp 1.00' instead of 'Rp 1.000.000'). Value itself is correct, only display truncated. Suggest making both col-span-2/2 with wider dialog or giving credit col-span-3 and account col-span-5."]},
+      {"screen": "Pusat Konfigurasi > Aturan Bisnis", "issues": ["Rule values that are rupiah amounts (e.g. addon.excess_land_price_per_m2 'Harga list kelebihan tanah (Rp/m2)') are still plain unmasked inputs showing '2000000'. Out of the 70-field list, but inconsistent with the new masking UX — low priority."]},
+      {"screen": "Master Proyek project sheet / Deal & Unit", "issues": ["Pre-existing Radix console.error: 'DialogContent requires a DialogTitle for the component to be accessible' fires on these pages (unrelated to RupiahInput, but it is a red console error)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "AddJournalDialog: widen the Kredit column (or reduce prefix padding) so masked values are not visually clipped.",
+    "Optional: mask rupiah-typed values in Pusat Konfigurasi > Aturan Bisnis rule editor for consistency.",
+    "Optional/pre-existing: add DialogTitle (or VisuallyHidden) to the dialog/sheet raising the Radix a11y console error on /projects and /deals."
+  ],
+  "critical_code_review_comments": [
+    "RupiahInput.handle builds a synthetic event by spreading `e` and overriding target/currentTarget — handlers that read e.target.checked/type or call e.target.focus() would break. Currently all 70 usages only read value, so no defect found, but consider passing the real input element with a normalized value instead.",
+    "className splitting via SIZE_RE only moves h-*/text-* to the inner input; any other size-affecting class (e.g. w-[200px], col-span-*) stays on the wrapper div — this worked in all tested cases (P57.previewPrice w-[200px], termValue sm:col-span-2) but is fragile if someone passes e.g. 'px-2' expecting it on the input.",
+    "Leading-zero strip uses /^0+(?=\\d)/ so a single '0' remains '0' (intentional), but MAX_DIGITS=15 silently truncates paste of longer numbers without user feedback."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% of requested flows verified except BOOKING_FEE.payAmount (see below)"},
+  "seed_data_creation": "No new seed. Data mutated during test: AP expense Rp 1.250.000 (vendor 'TEST Notaris Rupiah') on contract 60bd3d0d (BPHTB component now flagged 'beban dicatat (AP)'); manual journal JV/2026/00064 'TEST RupiahInput jurnal' Rp 1.000.000; petty cash KB/2026/0003 'TEST kas bon rupiah mask' Rp 750.000 (status Diajukan); unit A-03 (Cluster Asri Blok A) price changed 850.000.000 -> 777.000.000.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 (login at /login, fill email+password, press Enter). /login redirects to / when a session cookie exists.",
+  "context_for_next_testing_agent": "BOOKING_FEE.payAmount (booking-fee-pay-button) could not be exercised at runtime: every deal on /deals has booking fee status 'Lunas', so the 'Catat pembayaran' button is hidden. Code review confirms BookingFeePanel.js:127 uses RupiahInput. Unit A-03 price is now Rp 777.000.000 and a TEST AP bill/expense + TEST petty cash request + TEST manual journal exist from this iteration (harmless, can stay).",
+  "rca_of_the_issue": "No functional defect found in the RupiahInput rollout. The only real finding is a layout one: the credit column in AddJournalDialog (sm:col-span-2) is too narrow for the new 'Rp ' prefix + thousand separators, clipping the displayed digits."
+}

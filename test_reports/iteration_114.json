@@ -1,0 +1,23 @@
+{
+  "summary": "P114 verification (backend + frontend). Backend: 7/7 pytest passed (invoice PDF, kwitansi PDF, 404 paths, contracts/AR regression). Frontend E2E (Playwright, superadmin): (1) dialog 'Tugas Baru' at 1366x768 fits (maxHeight 706px, overflow-y auto, scrollHeight 801 > clientHeight 705, submit button reachable at y=676) and task creation still works (toast 'Tugas dibuat.'); (2) lead header shows stacked chips TAHAP/SKOR/SUMBER/PIC/UMUR with uppercase micro-labels + gradient accent strip, UMUR chip no longer cramped; (3) no rendered 'Fase NN' text found on /leads/{id} (Ringkasan + Unit & SPR), customer Rencana Bayar, /finance, /bi, /documents — remaining 'Fase NN' hits are only JS comments; (4) DocumentIssueHub: 'Terbitkan Dokumen' is default first tab, contract picker lists 4 contracts, SPR Cash Keras enabled (with warning) and other variants disabled WITH reasons, issuing created document row (Draft) and 'Cetak / PDF' returned 200 application/pdf; 'Bukti pembayaran booking' shows billing summary + issue-hub-invoice-pdf (200 PDF) + 2 issue-hub-receipt-row with issue-hub-receipt-pdf (200 PDF); (5) customer Rencana Bayar 'Penerimaan yang sudah tercatat' shows 2 [plan-receipt-pdf] buttons, click returned 200 PDF; (6) regression: 'Dokumen Transaksi' and 'Perizinan' tabs load fine. No console errors observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog Tugas Baru (/tasks)", "issues": ["Field 'Tenggat' uses native <input type=datetime-local> (US mm/dd/yyyy browser picker) instead of a shadcn date/time picker — inconsistent with Indonesian date format used elsewhere (non-blocking, pre-existing)"]},
+      {"screen": "/documents → Terbitkan Dokumen (contract picker) & /customers", "issues": ["Demo seed data still carries 'Fase 50' inside customer names ('Bapak Hendra Demo (Fase 50)', 'Ibu Ratna Demo (Fase 50)'), so the phrase 'Fase 50' is still visible to users via data even though UI copy was cleaned — consider renaming seed data"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p114_invoice_receipt_pdf.py", "/app/test_reports/pytest/p114.xml"],
+  "action_items": ["Optional: rename demo seed customers containing '(Fase 50)'", "Optional: replace native datetime-local in CreateTaskDialog with shadcn date-time picker"],
+  "critical_code_review_comments": ["ar_router.invoice_pdf/receipt_pdf import fastapi Response, doc_layout, pdf_utils inside the function body — fine functionally but prefer module-level imports for consistency", "AR router route order is correct (/deposits before /{deal_id}); receipts/{rid}/pdf is registered before /{deal_id}/invoice/pdf so no shadowing"],
+  "updated_files": ["/app/backend/tests/test_p114_invoice_receipt_pdf.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created 1 test receipt (Rp 50.000, note TEST_P114, KWT/2026/0005) on the first AR deal; issued 1 draft SPR Cash Keras (0001/SPR-CASH/CAA/VIII/2026); created 1 task 'TEST_P114 Tugas uji'. Receipts have no delete endpoint and are journaled — left in place as demo data.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Backend regression file: /app/backend/tests/test_p114_invoice_receipt_pdf.py (login uses access_token). Note pytest.ini already injects -n/--dist so do not pass -p no:xdist. Frontend notes: lead rows are clickable text (not <a>), use get_by_text('Ibu Dewi Kartika'); tab names include count suffix (e.g. 'Unit & SPR1') so use regex names; goto with wait_until='networkidle' hangs because of the notifications WebSocket — use default load + explicit waits.",
+  "rca_of_the_issue": "N/A — all reported P114 fixes verified working."
+}

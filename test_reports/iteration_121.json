@@ -1,0 +1,56 @@
+{
+  "summary": "Fase 71 (penomoran terkonfigurasi) diuji end-to-end. Backend: 18 pytest dijalankan (test_p71_numbering.py dev + test_p71_numbering_ext.py baru) → 17 lulus, 1 gagal. Terverifikasi: GET /api/numbering (41 aturan, semua field key/label/group/pattern/prefix/width/reset/seq_scope/start/overridden/default/preview/next_seq + meta groups/reset_options/seq_scope_options/global_tokens/context_tokens), GET /{key}/tokens (spk & master:unit, umum+konteks; key asing → 404), POST preview (SPK/GRY/IX/2026/000x, token {FOO} → 400 'Token {FOO} tidak tersedia', preview tidak menaikkan counter), RBAC (sales view 200 / PUT+DELETE 403; superadmin & owner boleh edit), PUT spk width=3 → SPK/<KODEPROYEK>/IX/2026/NNN lalu DELETE kembali ke {PREFIX}/{YYYY}/{SEQ}, kode master otomatis (PRJ-xx, Cxx, VND-, SUB-, Txx, ADD-, unit A-07), pola kustom master:cluster {PROJECT_INITIALS}-CL{SEQ:2} → BIP-CL, dan regresi kode manual dipakai apa adanya. Frontend: panel /config tab Penomoran 41 baris, kolom benar, filter kelompok & pencarian bekerja, dialog (pratinjau hidup, error token, token chip, simpan+badge 'disesuaikan', kembalikan bawaan) semuanya bekerja, tab config lain tanpa error konsol. SATU BUG ditemukan: counter kode blok & cluster bersifat global, bukan per cluster/proyek.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/masterplan/clusters/{cid}/blocks & /api/masterplan/projects/{pid}/clusters (numbering master:block / master:cluster)",
+        "issue": "Counter urutan tidak terpisah per induk. Blok pertama pada cluster BARU tidak mendapat 'A' — hasil aktual pada dua cluster baru: ['C','D'] dan ['E','F']; cluster pertama pada dua proyek baru: C03 dan C04 (bukan C01). Ini melanggar deskripsi registry master:block 'Bawaan huruf A, B, C… per cluster' dan membuat test milik developer sendiri (tests/test_p71_numbering.py::test_master_codes_generated_when_blank, assert block['code']=='A') GAGAL — jadi klaim 6/6 lulus hanya berlaku pada DB bersih/first-run. RCA: numbering._counter_scope() hanya memecah counter berdasar token scoping yang MUNCUL di pola; pola bawaan '{SEQ_ALPHA}' (blok) dan '{PREFIX}{SEQ:2}' (cluster) tidak memuat token konteks, sehingga scope counter = key global org. Saran: untuk aturan master:* pecah counter dari konteks induk (cluster_id/project_id) meski token tidak dipakai di pola, atau tambah opsi seq_scope 'parent'.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/numbering (field next_seq/preview)",
+        "issue": "list_rules/preview memakai seq.peek(rule['key']) — counter dasar tanpa scope token, sedangkan generate() memakai counter ber-scope (mis. per proyek). Untuk aturan dengan seq_scope='tokens', kolom 'Urut berikutnya' & 'Contoh nomor berikutnya' bisa tidak sama dengan nomor yang benar-benar terbit. Perlu dijelaskan di UI atau dihitung per scope contoh."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/config → tab Penomoran (RBAC read-only)",
+        "issues": ["Skenario 'login sales@sipro.co.id → tab Penomoran terlihat, field disabled' TIDAK bisa terjadi: rute /config dilindungi RequireAdmin (izin permissions:manage), sehingga sales di-redirect ke '/'. Mode read-only NumberingRuleDialog secara praktis dead code karena hanya owner/super_admin (yang punya settings:update) bisa membuka /config. Informational — bukan regresi, tapi ekspektasi di request tidak dapat diverifikasi via UI."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p71_numbering_ext.py",
+    "/app/backend/tests/test_p71_scope_probe.py",
+    "/app/backend/tests/cleanup_p71.py",
+    "/app/test_reports/pytest/p71_t1.xml"
+  ],
+  "action_items": [
+    "Perbaiki pemisahan counter kode blok per cluster dan kode cluster per proyek (numbering._counter_scope / generate context) agar blok baru mulai 'A' dan cluster baru mulai C01; setelah fix jalankan tests/test_p71_scope_probe.py dan tests/test_p71_numbering.py::test_master_codes_generated_when_blank.",
+    "Selaraskan next_seq/preview pada GET /api/numbering dengan counter ber-scope, atau beri catatan di UI bahwa contoh memakai counter dasar.",
+    "Putuskan apakah mode read-only NumberingPanel perlu dipertahankan; bila ya, buka /config untuk peran dengan settings:view (mis. sales/manager) agar sesuai desain, bila tidak hapus dead code."
+  ],
+  "critical_code_review_comments": [
+    "numbering._counter_scope() bergantung pada token pola untuk memecah counter — untuk kode master yang unik per induk (blok per cluster, cluster per proyek) ini rapuh; scope harus berasal dari konteks pemanggil, bukan dari teks pola.",
+    "numbering.generate_unique() menutupi bug scope: karena counter global terus naik, kode selalu 'unik' sehingga kode blok melompat (C, D, E…) tanpa error yang terlihat.",
+    "preview() dan list_rules() memakai seq.peek(rule['key']) sementara generate() memakai nama counter ber-scope — dua sumber kebenaran untuk nomor berikutnya."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p71_numbering_ext.py",
+    "/app/backend/tests/test_p71_scope_probe.py",
+    "/app/backend/tests/cleanup_p71.py"
+  ],
+  "success_rate": {"backend": "94% (17/18 pytest; 1 gagal = bug scope counter blok)", "frontend": "100% skenario yang dapat dijalankan (RBAC sales tak dapat diuji karena guard /config)"},
+  "seed_data_creation": "Proyek/cluster/blok/vendor/subkon/tipe/addon bernama '... Uji ...' dan SPK 'Uji penomoran' dibuat lalu DIBERSIHKAN via /app/backend/tests/cleanup_p71.py. Semua override numbering_rules dihapus (koleksi numbering_rules kosong) sehingga aturan kembali bawaan.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "owner@sipro.co.id / superadmin@sipro.co.id / sales@sipro.co.id, sandi Sipro#2026",
+  "context_for_next_testing_agent": "Gunakan REACT_APP_BACKEND_URL saat menjalankan pytest (mis. REACT_APP_BACKEND_URL=$(grep -h REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2) python -m pytest tests/test_p71_numbering.py tests/test_p71_numbering_ext.py tests/test_p71_scope_probe.py). tests/test_p71_scope_probe.py sengaja GAGAL sampai bug scope counter blok/cluster diperbaiki. pytest.ini memakai xdist; tambahkan -n0 untuk debug. Setelah tes jalankan tests/cleanup_p71.py. Frontend: semua testid di frontend/src/constants/testIds/p71.js valid dan berfungsi.",
+  "rca_of_the_issue": "Bug utama: numbering._counter_scope() hanya menambahkan bagian scope dari token SCOPING_TOKENS yang ada di pola. Pola bawaan master:block '{SEQ_ALPHA}' dan master:cluster '{PREFIX}{SEQ:2}' tidak memuat token konteks, sehingga sequences memakai nama counter 'master:block'/'master:cluster' tingkat organisasi. Akibatnya urutan huruf blok dan nomor cluster terus naik lintas cluster/proyek. Reproduksi: buat dua proyek baru → tiap proyek satu cluster → dua blok per cluster; hasil C,D lalu E,F (harapan A,B dan A,B) serta cluster C03/C04 (harapan C01/C01)."
+}

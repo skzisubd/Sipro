@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only regression test of the redesigned BI page (/bi) after MetricSpark/MetricCard/MetricChart upgrade. Logged in as superadmin@sipro.co.id, exercised Executive/Sales/Marketing/Project/Team hubs, mini visualisations, trend badge, empty-state honesty, big charts, custom tooltip, donut center total, detail dialog, drill links, refresh and period select, on desktop (1920) and mobile (390). Core functionality PASSES with zero red console errors on all 5 hubs. Found 3 visual/readability defects (truncated numbers in card top-3 bars, clipped Y-axis currency ticks on 'Kas masuk per bulan', flat sparkline rendering as a solid block) plus one lint error (duplicate keys in testIds) which I fixed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MetricSpark/TopBars", "issue": "Value column is w-[22%] with truncate, so rupiah figures are cut off in nearly every breakdown card ('Rp 212.500.0…', 'Rp 15.830…', 'Rp 1.217.6…', 'Rp 2.100.000…') on both desktop and mobile — the mini viz shows a number the user cannot read. Suggest compact formatting (Rp 212,5 jt) or wider/auto value column.", "selector": "[data-testid=\"bi-metric-spark\"]", "priority": "MEDIUM"},
+      {"component": "MetricChart (series area) — 'Kas masuk per bulan'", "issue": "YAxis width={72} is too narrow for full rupiah tick labels; ticks render clipped ('00.000.000' with the leading digit cut). Widen axis or use compact tick formatter for large values.", "selector": "[data-testid=\"bi-chart\"] .recharts-yAxis", "priority": "MEDIUM"},
+      {"component": "MetricSpark/Sparkline (SLS-01)", "issue": "Sparkline plots metric.series 'value' which is constant for SLS-01, producing a full-height solid gradient block with a flat line pinned at the top — reads as a rendering glitch, not a trend. Consider using 'cumulative' when present, or padding the Y domain so a flat series draws a mid-height line.", "selector": "[data-testid=\"bi-metric-card\"][data-code=\"SLS-01\"] [data-testid=\"bi-metric-spark\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bi ?hub=tim — 'Jejak aktivitas harian'", "issues": ["Single-point series renders as one lone dot in a large empty box (no line/area); consider min 2 buckets or an explicit 'hanya 1 periode' note"]},
+      {"screen": "/bi ?hub=marketing — 'CPL per kampanye'", "issues": ["Third campaign (tiktok-awareness, no cost) occupies a bar row with no label/bar visible even though the description promises zero-cost campaigns are still shown"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix truncated numeric labels inside MetricSpark TopBars (compact rupiah format or wider column)",
+    "Widen/compact-format YAxis ticks in MetricChart series charts so rupiah ticks are not clipped ('Kas masuk per bulan')",
+    "Handle flat/constant series in card Sparkline (use cumulative or padded domain) to avoid the solid-block look on SLS-01"
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/constants/testIds/bi.js had cardSpark/cardTrend declared twice (ESLint no-dupe-keys errors) — removed the duplicate pair.",
+    "MetricSpark Sparkline gradient id is `spark-${code}`; ensure metric codes are unique per page, otherwise SVG gradient ids collide across duplicated cards.",
+    "MetricChart is dense but under 200 lines; no DRY/size violations found. Honesty rules verified in code and at runtime (state='kosong' → no spark, chart shows emptyText)."
+  ],
+  "updated_files": ["/app/frontend/src/constants/testIds/bi.js"],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "~92% (all functional checks pass; 3 visual defects)"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Verified: /bi loads (bi-page); Executive tab 15 cards, 9 with bi-metric-spark, 1 bi-metric-trend (SLS-01 'tetap'); pct metrics SLS-02/BGT-04/PRJ-01/PRJ-04 show progress bar with 0%/target 100% labels; MKT-03 ROAS state=kosong shows 'belum ada data' and has NO bi-metric-spark (honesty rule OK). 5 charts on exec, 4 on penjualan, 4 on marketing (donut 'Campuran kanal lead' center total = 37 with 'total' caption; ROAS chart shows honest empty text), 6 on proyek, 4 on tim. Custom ChartTip verified on bar chart ('1-30 hari | Piutang jatuh tempo | Rp 212.500.000') and cumulative area ('2026-05 | Kumulatif | 2'). MetricDetailDialog (bi-metric-detail) opens with 3 rows + table + Ekspor CSV and closes on Escape; 15 drill links present; bi-refresh reloads (15 cards); bi-period has 5 options and switching to 'Seluruh data' keeps 15 cards/9 sparks with no errors. Console: 0 errors on all 5 hubs (only pre-existing recharts width(-1) warnings). Note: browser sessions are not persisted between automation runs — log in inside each script.",
+  "rca_of_the_issue": "Truncation/clipping issues stem from fixed percentage widths (w-[22%] + truncate) in MetricSpark TopBars and a hard-coded YAxis width={72} in MetricChart, which cannot fit full IDR figures. The SLS-01 flat-block sparkline is caused by charting the non-cumulative 'value' series (constant), so recharts places the line at the domain max and fills the whole area beneath it."
+}

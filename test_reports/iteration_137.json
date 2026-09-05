@@ -1,0 +1,21 @@
+{
+  "summary": "Fase 90 diuji penuh (backend + frontend). Backend: 13/13 pytest lulus di /app/backend/tests/test_p90.py — GET /api/master/phone-health kini memuat duplicate_samples[] (id,name,phone,normalized,clash_id,clash_name) & invalid_samples[] (maks 20) plus total_pending/duplicate/invalid; nomor '0812-ABCxy' dihitung invalid (bukan pending) dan TIDAK diubah oleh POST /normalize-phones; lead 'akan ganda' dilewati (skipped_duplicate>=1). POST /api/master/phone-fix: 400 nomor tidak valid, 409 bentrok, 400 koleksi tak dikenal, 404 id tak ada, 403 untuk sales, 200 dengan message 'Nomor diperbarui menjadi +62...' + data.after = phone-health terbaru + persistensi DB terverifikasi, dan phone:'' -> 'Nomor dihapus dari baris.' (field jadi null). Kupon dengan valid_from/valid_until tersimpan & terbaca benar (endpoint /api/pricing/coupons). Frontend: kolom 'Tindak lanjut' + tombol Perbaiki (n) -> dialog dengan bagian 'Akan ganda'/'Tidak valid', Simpan & hapus nomor berfungsi (toast benar, item hilang, hitungan turun), tautan 'Buka' href /leads/<id>. Tombol 'Rapikan sekali jalan (0)' nonaktif tetap terbaca (variant outline, border-dashed, disabled:opacity-100). Dialog kupon: 'Berlaku mulai'/'Berlaku sampai' kini tombol pemicu kalender shadcn (BUTTON, bukan input type=date), kalender muncul, tanggal tampil format Indonesia ('15 September 2026'), kupon UJI-P90 tersimpan lalu dibuka ubah dengan tanggal tersaji kembali, dan sudah dinonaktifkan.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_p90.py", "/app/test_reports/pytest/p90_results.xml"],
+  "action_items": [
+    "Data demo kotor: lead 'Bapak Hendra Demo' (id d210cfbd-269a-4253-88db-bd6ec44e08a6) masih menyimpan phone '0812-ABC' — sisa data uji fase sebelumnya sehingga Kesehatan Data selalu menampilkan invalid=1. Pertimbangkan membersihkan/mengembalikan ke nomor +62 valid (saya biarkan agar tidak mengubah data non-uji)."
+  ],
+  "critical_code_review_comments": [
+    "constants/testIds/master.js: blok kunci phoneFix* terduplikasi 4x (duplicate object keys) — sudah saya rapikan menjadi satu blok (nilai identik, tanpa perubahan perilaku).",
+    "PhoneHealthCard.js baris 73 memakai r.invalid_samples tanpa fallback; bila backend lama/rows tanpa field ini UI akan crash. Gunakan (r.invalid_samples || [])."
+  ],
+  "updated_files": ["/app/backend/tests/test_p90.py", "/app/frontend/src/constants/testIds/master.js"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Sementara: leads TEST-P90-A/B/C (pytest fixture, auto-hapus) dan UI-P90-A/B/C untuk uji UI — semuanya sudah dihapus. Kupon UJI-P90 dibuat via UI dan sudah dinonaktifkan (active:false); kupon UJI-P90-BE dari pytest sudah dihapus.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026, sales@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "test_p90.py harus dijalankan dengan '-n 0' (xdist loadscope membuat fixture module dieksekusi per worker -> tabrakan unique index uq_leads_phone). Nomor telepon uji dipilih dinamis (fixture free_phone) karena index unik. Koleksi kupon adalah 'coupons', endpoint /api/pricing/{discount-schemes|promos|coupons}. Kupon UJI-P90 masih ada di DB dalam kondisi nonaktif.",
+  "rca_of_the_issue": "Tidak ada bug produk yang ditemukan pada Fase 90. Dua kegagalan awal pytest murni tabrakan data uji (nomor 081377776666 & kode kupon sudah dipakai) dan sudah diperbaiki di sisi test."
+}

@@ -1,0 +1,31 @@
+{
+  "summary": "Retest Fase 93 setelah perbaikan iteration_140. Backend: /app/backend/tests/test_p93.py diperluas menjadi 23 tes — SEMUA LULUS. Verifikasi: totals.spend atribusi kini = Rp 15.830.000 (campaign_id unik) dan sama dengan drilldown ads:spend?ctx=attribution serta /api/ads/performance untuk rentang yang sama; totals.cpl = spend/leads (Rp 344.130); drilldown ads:clicks|impressions|leads_platform mengembalikan data.unit='count' dan row.unit='count'; ads:spend data.unit='idr'. Frontend (Playwright, cache CDP dibersihkan, login superadmin): /campaigns?hub=biaya kartu spend-kpi-card-clicks -> dialog 'Klik per kampanye' total 3.417 dan baris 2.311/1.106 TANPA 'Rp'; /attribution?hub=funnel kartu attr-kpi-card-spend 'Rp 16 jt' konsisten dengan popup total Rp 15.830.000 (12.260.000 + 3.570.000) dan CPL gabungan Rp 344.130; /projects/cb18f908 kartu project-kpi-card-sold -> finance-kpi-open-all -> URL ?tab=units&status=booked,sold,handed_over dengan 4 baris + chip masterplan-unit-filter-status-chip 'Status: 3 pilihan', klik chip -> 18 baris, URL menjadi ?tab=units (param status hilang) dan ReferenceSelect masterplan-unit-filter-status ('Semua status jual') tampil kembali. Regresi: /campaigns?hub=kinerja ads-kpi-card-leads -> 28 baris + unduh CSV (rincian-ads-leads-2026-09-04.csv) sukses; Beranda 10 kartu KPI, popup berfungsi.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DrilldownDialog (attribution spend)", "issue": "Judul dialog 'Biaya iklan per kampanye' (spesifikasi menyebut 'Biaya iklan terpetakan per kampanye') — kosmetik, tidak memblokir", "selector": "[data-testid=finance-kpi-dialog]", "priority": "LOW"},
+      {"component": "ProjectDetailPage/UnitsTab", "issue": "Console error React masih ada: 'In HTML, <option> cannot be a child of <span> ... hydration error' (ProjectDetailPage.js:119, TabsContent value=units). Pre-existing dari Radix BubbleSelect, tidak diperbaiki di fase ini", "selector": "-", "priority": "LOW"},
+      {"component": "Tabel Atribusi (kolom Biaya)", "issue": "Total kartu/popup sudah benar, tapi baris tabel atribusi masih menampilkan biaya kampanye penuh (mis. 'Rp 12 jt') di setiap baris (source, campaign) sehingga jumlah kolom secara visual > total kartu. Perlu penjelas/label atau alokasi", "selector": "-", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_p93.py", "/app/test_reports/pytest/p93_r2.xml"],
+  "action_items": [
+    "Opsional: samakan judul dialog spend atribusi dengan spesifikasi ('Biaya iklan terpetakan per kampanye')",
+    "Opsional: bereskan warning hydration <option> di dalam <span> pada tab Unit (native select filter cluster/status di dalam komponen Radix)",
+    "Opsional: beri label pada kolom Biaya tabel atribusi bahwa nilai adalah biaya kampanye (bukan alokasi per sumber) agar tidak dibaca sebagai penjumlahan"
+  ],
+  "critical_code_review_comments": [
+    "Perbaikan totals.spend per campaign_id unik di ads_report.attribution terverifikasi konsisten dengan /api/ads/performance dan drilldown ads:spend.",
+    "Kontrak drilldown kini membawa unit ('count'/'idr') di level data dan row — DrilldownDialog memformat sesuai; disarankan menerapkan unit yang sama untuk metrik persentase di masa depan."
+  ],
+  "updated_files": ["/app/backend/tests/test_p93.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% pada alur yang diuji"},
+  "seed_data_creation": "Tidak ada data baru dibuat (hanya baca).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026; sales@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Semua perbaikan iteration_140 terkonfirmasi. Selektor: dialog=[data-testid=finance-kpi-dialog], baris=[data-testid^='finance-kpi-row-'], CSV=[data-testid=drilldown-csv-btn], tabel terfilter=[data-testid=finance-kpi-open-all], chip status unit=[data-testid=masterplan-unit-filter-status-chip], select status=[data-testid=masterplan-unit-filter-status]. Nilai referensi: attribution spend 15.830.000, clicks 3.417, leads kinerja 28 baris, unit proyek 18 total / 4 booked+sold+handed_over. Sisa isu hanya LOW (judul dialog, warning hydration <option>, kolom biaya tabel atribusi).",
+  "rca_of_the_issue": "Tidak ada isu baru. Bug HIGH sebelumnya (double-count spend atribusi 7x) hilang setelah agregasi per campaign_id unik; isu format 'Rp' pada metrik hitung hilang setelah backend mengirim unit='count' dan DrilldownDialog memformat angka id-ID."
+}

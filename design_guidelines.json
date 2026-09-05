@@ -1,0 +1,222 @@
+{
+  "design_identity": {
+    "persona": "E1 - Creative Designer (The Anti-AI Designer)",
+    "archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST + ARCHETYPE 2: THE PERFORMANCE PRO",
+    "brand_name": "SIPRO (Property Development OS)",
+    "design_goal": "Transform flat, low-contrast, cognitive-heavy internal ERP screens into a high-density, sharp, multi-layered tactical command center with crystal-clear visual hierarchy, high contrast cards against cool canvas, precise tabular figures, and cognitive status affordances."
+  },
+  "color_system": {
+    "theme_strategy": "Crisp Cool Slate Canvas with Stark Pure White Elevated Cards, Crisp 1px Tinted Borders, and High-Affordance Semantic Badges",
+    "contrast_fix_explanation": "The previous background (36 33% 98% warm beige) was visually indistinguishable from white cards, creating a muddy flat illusion. The new canvas is a cool slate-tinted background (220 20% 97%) paired with pure white cards (0 0% 100%), subtle 1px slate borders (215 16% 87%), and crisp ambient shadows (shadow-sm to shadow-md).",
+    "css_variables": {
+      "light": {
+        "--background": "220 20% 97%",
+        "--foreground": "222 47% 11%",
+        "--card": "0 0% 100%",
+        "--card-foreground": "222 47% 11%",
+        "--surface-subtle": "220 14% 94%",
+        "--surface-overlay": "0 0% 100%",
+        "--popover": "0 0% 100%",
+        "--popover-foreground": "222 47% 11%",
+        "--primary": "199 89% 27%",
+        "--primary-hover": "199 89% 22%",
+        "--primary-foreground": "0 0% 100%",
+        "--secondary": "215 25% 93%",
+        "--secondary-hover": "215 20% 88%",
+        "--secondary-foreground": "222 47% 14%",
+        "--muted": "220 14% 93%",
+        "--muted-foreground": "215 16% 40%",
+        "--accent": "199 80% 95%",
+        "--accent-foreground": "199 89% 24%",
+        "--destructive": "354 78% 54%",
+        "--destructive-hover": "354 78% 46%",
+        "--destructive-foreground": "0 0% 100%",
+        "--border": "215 16% 87%",
+        "--input": "215 16% 85%",
+        "--ring": "199 89% 34%",
+        "--radius": "0.5rem",
+        "--semantic-success": "152 69% 31%",
+        "--semantic-success-bg": "144 65% 96%",
+        "--semantic-success-border": "145 55% 82%",
+        "--semantic-warning": "35 92% 38%",
+        "--semantic-warning-bg": "38 92% 96%",
+        "--semantic-warning-border": "38 80% 82%",
+        "--semantic-danger": "354 78% 54%",
+        "--semantic-danger-bg": "355 86% 97%",
+        "--semantic-danger-border": "354 70% 84%",
+        "--semantic-info": "212 90% 48%",
+        "--semantic-info-bg": "214 95% 97%",
+        "--semantic-info-border": "212 80% 85%"
+      },
+      "dark": {
+        "--background": "222 47% 7%",
+        "--foreground": "210 40% 98%",
+        "--card": "222 47% 10%",
+        "--card-foreground": "210 40% 98%",
+        "--surface-subtle": "222 40% 13%",
+        "--surface-overlay": "222 47% 12%",
+        "--popover": "222 47% 10%",
+        "--popover-foreground": "210 40% 98%",
+        "--primary": "199 89% 45%",
+        "--primary-hover": "199 89% 50%",
+        "--primary-foreground": "222 47% 7%",
+        "--secondary": "217 19% 16%",
+        "--secondary-hover": "217 19% 22%",
+        "--secondary-foreground": "210 40% 98%",
+        "--muted": "217 19% 16%",
+        "--muted-foreground": "215 20% 70%",
+        "--accent": "199 40% 18%",
+        "--accent-foreground": "199 84% 70%",
+        "--destructive": "354 78% 48%",
+        "--destructive-hover": "354 78% 55%",
+        "--destructive-foreground": "210 40% 98%",
+        "--border": "217 19% 18%",
+        "--input": "217 19% 20%",
+        "--ring": "199 89% 45%",
+        "--semantic-success": "150 70% 45%",
+        "--semantic-success-bg": "150 50% 12%",
+        "--semantic-success-border": "150 40% 22%",
+        "--semantic-warning": "38 90% 50%",
+        "--semantic-warning-bg": "38 50% 12%",
+        "--semantic-warning-border": "38 40% 22%",
+        "--semantic-danger": "354 78% 55%",
+        "--semantic-danger-bg": "354 50% 12%",
+        "--semantic-danger-border": "354 40% 22%",
+        "--semantic-info": "212 90% 60%",
+        "--semantic-info-bg": "212 50% 12%",
+        "--semantic-info-border": "212 40% 22%"
+      }
+    }
+  },
+  "typography": {
+    "font_families": {
+      "headings": "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif",
+      "body": "'Plus Jakarta Sans', system-ui, sans-serif",
+      "numbers_and_code": "'JetBrains Mono', 'Roboto Mono', monospace"
+    },
+    "font_import_link": "<link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap\" rel=\"stylesheet\">",
+    "typography_scale": {
+      "page_title": "text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50",
+      "page_description": "text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed",
+      "section_heading": "text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100",
+      "card_title": "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400",
+      "kpi_value": "text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-slate-50",
+      "kpi_label": "text-xs font-medium text-slate-600 dark:text-slate-400 clamp-2",
+      "table_header": "text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 py-3 px-3",
+      "table_cell": "text-sm text-slate-800 dark:text-slate-200 py-2.5 px-3",
+      "tabular_money_cell": "text-sm font-semibold tabular-nums text-right text-slate-900 dark:text-slate-100 py-2.5 px-3 whitespace-nowrap",
+      "badge_text": "text-xs font-semibold tracking-wide"
+    },
+    "text_formatting_rules": [
+      "Rule 1: Always enforce `max-w-3xl` or `max-w-prose` on description lines to prevent wide 3-line text stretch.",
+      "Rule 2: Money amounts must use `tabular-nums text-right font-mono font-semibold` inside tables and KPI cards.",
+      "Rule 3: Heading jumps must be smooth (e.g. Page title text-2xl -> Section text-lg -> Card text-sm).",
+      "Rule 4: All labels and table column headers must use uppercase tracking-wider (`uppercase tracking-wider text-[11px] font-bold text-slate-500`)."
+    ]
+  },
+  "component_recipes": {
+    "button": {
+      "primary": "bg-sky-800 hover:bg-sky-900 active:bg-sky-950 text-white font-semibold shadow-sm shadow-sky-900/20 rounded-md transition-all duration-150 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none data-[testid]",
+      "secondary": "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-medium rounded-md shadow-2xs transition-all duration-150 focus:ring-2 focus:ring-slate-400 active:scale-[0.98]",
+      "outline": "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-md shadow-2xs transition-all duration-150 focus:ring-2 focus:ring-slate-400 active:scale-[0.98]",
+      "ghost": "hover:bg-slate-100 text-slate-700 font-medium rounded-md transition-all duration-150",
+      "destructive": "bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm rounded-md transition-all duration-150 active:scale-[0.98]",
+      "sizes": {
+        "xs": "h-7 px-2.5 text-xs gap-1",
+        "sm": "h-8 px-3 text-xs gap-1.5",
+        "md": "h-9 px-4 text-sm gap-2",
+        "lg": "h-10 px-5 text-base gap-2"
+      }
+    },
+    "card_and_stat_card": {
+      "card_container": "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden",
+      "stat_card": "bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-lg p-4 shadow-xs relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition-all",
+      "stat_card_accent_bar": "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-700 to-indigo-600",
+      "stat_card_urgent_bar": "absolute top-0 left-0 right-0 h-1 bg-rose-500",
+      "stat_card_warning_bar": "absolute top-0 left-0 right-0 h-1 bg-amber-500"
+    },
+    "input_and_search": {
+      "input_base": "h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1 text-sm shadow-2xs transition-colors placeholder:text-slate-400 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50",
+      "search_bar_wrapper": "relative flex items-center w-full max-w-sm",
+      "search_icon": "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none",
+      "search_input": "pl-9 pr-8 h-9 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-sm shadow-2xs focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 transition-all",
+      "shortcut_badge": "absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 pointer-events-none"
+    },
+    "select": {
+      "trigger": "h-9 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 text-sm text-slate-800 dark:text-slate-200 shadow-2xs focus:ring-2 focus:ring-sky-500/20 focus:border-sky-600 transition-all"
+    },
+    "tabs": {
+      "segmented_container": "inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg border border-slate-200 dark:border-slate-700/60 shadow-2xs",
+      "trigger_active": "bg-white dark:bg-slate-900 text-sky-900 dark:text-sky-300 font-semibold shadow-xs rounded-md px-3 py-1.5 text-xs sm:text-sm transition-all border border-slate-200/80 dark:border-slate-700",
+      "trigger_inactive": "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium px-3 py-1.5 text-xs sm:text-sm transition-colors rounded-md"
+    },
+    "table": {
+      "wrapper": "w-full overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 shadow-xs",
+      "header_row": "bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-800",
+      "header_cell": "px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 whitespace-nowrap",
+      "body_row": "border-b border-slate-100 dark:border-slate-800/60 hover:bg-sky-50/40 dark:hover:bg-slate-800/50 transition-colors group",
+      "body_row_overdue": "border-b border-rose-100 bg-rose-50/30 dark:bg-rose-950/20 hover:bg-rose-50/60 transition-colors",
+      "body_cell": "px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 align-middle",
+      "money_cell": "px-3 py-2.5 text-sm font-semibold tabular-nums text-right text-slate-900 dark:text-slate-100 align-middle font-mono whitespace-nowrap",
+      "sticky_action_col": "sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-sky-50 dark:group-hover:bg-slate-800 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.06)] px-3 py-2.5 text-right z-10"
+    },
+    "badge_and_status": {
+      "critical": "bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-semibold px-2.5 py-0.5 rounded-full text-xs inline-flex items-center gap-1.5 shadow-2xs",
+      "high_warning": "bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-semibold px-2.5 py-0.5 rounded-full text-xs inline-flex items-center gap-1.5 shadow-2xs",
+      "medium": "bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 font-medium px-2.5 py-0.5 rounded-full text-xs inline-flex items-center gap-1.5",
+      "success": "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-semibold px-2.5 py-0.5 rounded-full text-xs inline-flex items-center gap-1.5 shadow-2xs",
+      "neutral": "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-medium px-2.5 py-0.5 rounded-full text-xs inline-flex items-center gap-1.5",
+      "pulsing_dot_red": "h-2 w-2 rounded-full bg-rose-600 animate-pulse",
+      "pulsing_dot_green": "h-2 w-2 rounded-full bg-emerald-600 animate-pulse"
+    },
+    "toolbar_filter": {
+      "container": "flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs mb-4",
+      "group": "flex flex-wrap items-center gap-2"
+    },
+    "empty_state": {
+      "container": "flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50/50 dark:bg-slate-900/50 my-4",
+      "icon_wrapper": "h-12 w-12 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center mb-3 shadow-xs",
+      "title": "text-base font-semibold text-slate-800 dark:text-slate-200 mb-1",
+      "description": "text-sm text-slate-500 max-w-md mb-4"
+    },
+    "skeleton": {
+      "base": "animate-pulse bg-slate-200 dark:bg-slate-800 rounded-md"
+    },
+    "sidebar_and_topbar": {
+      "sidebar": "w-64 bg-slate-900 text-slate-100 border-r border-slate-800 flex flex-col h-screen fixed top-0 left-0 z-30 shadow-lg",
+      "topbar": "h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6"
+    }
+  },
+  "action_hierarchy_and_depth": {
+    "hierarchy_rules": [
+      "1. Action Primacy: Each view or section MUST have at most ONE dominant Primary Button (sky-800 solid blue with white text). Secondary actions must use outline or secondary neutral style.",
+      "2. Destructive Safeguard: Destructive actions (delete, reject, revoke) must be styled in solid rose red and prompt a Confirmation Modal before execution.",
+      "3. Critical Status Affordance: Urgent items (e.g., late cash advances, overdue SPK opname, blocked leads) must show a glowing/pulsing red dot badge and a top red line accent on cards or table rows.",
+      "4. Depth Strategy: Combine a crisp 1px border (`border-slate-200`) with elevated card background (`bg-white`) and subtle shadow (`shadow-xs` / `shadow-sm`) over the slate-tinted canvas background (`bg-slate-100`). This creates clear optical layers: Canvas (Layer 0) -> Card (Layer 1) -> Modal/Popover (Layer 2)."
+    ]
+  },
+  "layout_and_spacing": {
+    "page_header": "flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-200 dark:border-slate-800",
+    "breadcrumb": "flex items-center gap-1.5 text-xs text-slate-500 mb-1",
+    "section_gap": "space-y-6",
+    "grid_bento": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+  },
+  "motion_and_interactions": {
+    "rules": [
+      "1. Use micro-animations on interactive states: hover, focus, active press (`active:scale-[0.98]`).",
+      "2. Row hover transitions in tables must use fast transition `transition-colors duration-150` with high-contrast hover tint (`hover:bg-sky-50/50`).",
+      "3. All focus states must display high-contrast visible focus rings (`focus:ring-2 focus:ring-sky-500 focus:ring-offset-2`).",
+      "4. Keep layout shift durations between 150ms and 200ms ease-out for maximum responsiveness without lag."
+    ]
+  },
+  "rollout_priority_and_shared_components": {
+    "step_1_token_layer": "Update `/app/frontend/src/index.css` CSS variables with the slate canvas and elevated card variables.",
+    "step_2_pattern_components": "Pave and update shared pattern files in `/app/frontend/src/components/patterns/`: `DataTable.js`, `DataTableToolbar.js`, `KpiCard.js`, `FilterBar.js`, `StatusPill.js`, `EmptyState.js`, `TabPage.js`.",
+    "step_3_layout_shell": "Enhance `/app/frontend/src/components/layout/TopBar.js`, `Sidebar.js`, and `AppShell.js` to ensure sticky navigation, clean contrast, and crisp boundaries.",
+    "step_4_domain_pages": "Refine high-frequency domain modules: Subcon & SPK, Kas Bon (Petty Cash), Control Tower (Home), WhatsApp Inbox, Ads & Attribution, Sales Deals, Finance & GL."
+  },
+  "data_testid_preservation": {
+    "mandatory_rule": "CRITICAL: Under NO circumstances should any existing `data-testid` attribute be modified or deleted. All 57 automated test suites depend on these selectors for gate verification.",
+    "example": "<Button data-testid=\"submit-spk-btn\" className=\"bg-sky-800 hover:bg-sky-900 text-white font-semibold\">Simpan SPK</Button>"
+  }
+}

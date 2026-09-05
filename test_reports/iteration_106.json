@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only retest of /bi round-2 changes (filter bar + bigger/interactive card visualizations) with superadmin@sipro.co.id. All 6 requested items PASS: filter bar (bi-period, filter-trigger-project, filter-trigger-tanggal) renders; project filter checkbox -> chip + bi-project-hint + API called with project_id on Eksekutif/Penjualan/Proyek while Marketing (/analytics/marketing/performance) and Tim (/analytics/users/daily) load without project_id; custom daterange sends date_from/date_to and header shows 'Rentang 2026-06-01 → 2026-08-29'; chip-clear/Reset filter restore period range (2026-07-31 → 2026-08-29); partial date shows amber 'Isi juga Sampai tanggal' hint and does NOT fire an API call; desktop card grid computed as 3 columns (416px each); SLS-01 sparkline tooltip works on hover ('2026-07 3'); '% tercapai' label on SLS-02/BGT-04; MKT-02 shows '+1 kategori lain di Rincian'; MKT-03 ROAS shows 'belum ada data' with no spark. Regression: all 5 hub tabs + Kamus Metrik (53 dictionary rows) load, MetricDetailDialog opens (3 rows) & closes on Esc, 15 drill links, 'Segarkan' refetches, period select ('Seluruh data' -> period=all) works. 0 console errors across all runs.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bi tablet 768px (sidebar expanded)", "issues": ["DashboardShell grid uses sm:grid-cols-2, so at 768px content width the cards become only ~216px wide: metric titles truncate ('UNIT TERJUAL ...', 'KAS MAS...') and large currency values overflow the card edge (e.g. 'Rp 3.800.000.000' clipped in SLS-03). Suggest md:grid-cols-2 (or container queries) and/or compact formatting for the hero value on narrow cards.", "Mobile 390px is fine (single column, 358px cards)."]},
+      {"screen": "/bi date range popover", "issues": ["Uses native browser <input type=date> pickers (mm/dd/yyyy, locale-dependent) instead of the shadcn calendar used elsewhere. Pre-existing FilterBar pattern, low priority but inconsistent."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: change DashboardShell card grid breakpoint from sm:grid-cols-2 to md:grid-cols-2 (or use container query) to avoid truncated titles/overflowing currency values at ~768px viewport with sidebar open.",
+    "Optional: each dashboard tab fires the analytics request twice on mount (duplicate identical GET observed for executive/marketing/users-daily/sales-funnel/schedule-health/metrics). Likely React StrictMode double-invoke in dev; verify it does not double-fetch in production build."
+  ],
+  "critical_code_review_comments": [
+    "BiPage baseParams correctly gates custom range on BOTH dates being present, so the partial-date state never issues a request — good.",
+    "MetricSpark Sparkline uses cumulative series with padded YAxis domain; tooltip payload reads row.bucket/row.v consistently — no defects found."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100% of requested scenarios passed"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "BI filter bar + card viz round-2 fully verified (iteration_106). Tab testids follow 'tab-page-tab-<key>' (not 'bi-hub-tab-<key>'). Only 1 project in seed ('Cluster Asri Blok A'). Remaining known cosmetic issue: card grid too narrow at 768px causing truncation.",
+  "rca_of_the_issue": "Tablet truncation root cause: `grid gap-4 sm:grid-cols-2 xl:grid-cols-3` in /app/frontend/src/components/bi/DashboardShell.js line 124 switches to 2 columns at 640px viewport, but the fixed sidebar (~256px) leaves ~480px of content, giving 216px cards that cannot fit the hero currency values."
+}

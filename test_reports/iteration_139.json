@@ -1,0 +1,42 @@
+{
+  "summary": "Fase 92 (drill-down KPI generik) diuji end-to-end. Backend: 37 pytest baru di /app/backend/tests/test_p92.py — semua lulus (GET /api/work/home drill_key/drill_params + semua kunci dapat di-resolve, tasks/leads/deals/projects/units_qc_hold/punch_open/retention_held/ar_outstanding, build:*, board:* (board:all=18 & board:late=2 sama dengan GET /api/build/board/units summary), _summary/leads 5 item dengan hot=17 = count drilldown leads?band=hot, RBAC sales: build:late_items 403, ar_outstanding 403, tasks/leads 200). Frontend (Super Admin, Chromium 1920x1080): Beranda kartu KPI klik → DrilldownDialog (5 baris tugas terlambat) → baris membuka TaskDetailSheet tanpa navigasi; kartu AR Outstanding → 'Buka tabel terfilter' → /finance?tab=receivables&sub=ar&status=unpaid,partial. /leads: strip 5 kartu (new24=7, hot=17, sla=0, idle7=41, won=0), kartu hot → dialog 17 baris (nama, telepon, skor pill) → klik baris navigasi ke /leads/{id} dan profil lead terbuka; kartu won → 'Buka tabel terfilter' → /leads?stage=won dengan tabel terfilter (0 lead, chip 'Tahap: Menang'). /build?hub=unit: 6 kartu build-metric-*, kartu Telat → dialog 'Unit telat' 2 baris (A-01/A-02 dengan 'progres … vs rencana … · telat N hari') → baris navigasi ke /units/{id} (Unit 360 render benar); kartu unscheduled → open-all → /build?hub=unit&unscheduled_only=1 (Menampilkan 13 dari 13 unit). BuildMonitorPanel (di dalam toggle 'Pekerjaan kawasan & monitoring jadwal') → kartu 'Pekerjaan telat' → dialog 8 baris → baris membuka UnitScheduleSheet (bukan navigasi). Regresi Fase 91 /finance ar_overdue → dialog → baris → /finance?tab=receivables&sub=ar&q=A-01 tetap jalan. Tidak ada error konsol.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/drilldown/{key}", "issue": "Kunci tak dikenal mengembalikan 403 ('Peran Anda tidak boleh membuka rincian angka ini.') bukan 404 seperti spesifikasi, karena allowed() dievaluasi sebelum KeyError. Saran: kembalikan 404 bila key bukan anggota FINANCE_KEYS/PERMISSION."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UnitBoardTab + BuildMonitorPanel", "issue": "data-testid duplikat saat panel monitoring dibuka: 'build-metric-late' dan 'build-metric-progress' muncul 2x pada halaman yang sama sehingga selektor otomatis ambigu (harus pakai .last). Beri prefiks berbeda, mis. build-monitor-metric-*.", "selector": "[data-testid=build-metric-late]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Pipeline Lead — dialog kartu 'hot'", "issues": ["Judul dialog 'Lead Hot' (label ref score_band) sedangkan kartu KPI berlabel 'Lead panas (hot)'; spesifikasi meminta 'Lead Panas' — samakan istilah bahasa Indonesia."]},
+      {"screen": "Papan Unit / BuildMonitorPanel", "issues": ["Kartu 'Sudah dijadwalkan' bernilai 5 (terjadwal) tetapi popup-nya menampilkan 'Unit belum dijadwalkan' 13 baris; angka kartu tidak sama dengan isi rincian (prinsip 'angka = rincian' Fase 91/92 terlanggar). Sama pada kartu 'Rumah terjadwal 5/18' di BuildMonitorPanel."]},
+      {"screen": "Beranda", "issues": ["Tidak ada kartu KPI 'Proyek' seperti disebut permintaan uji (kartu yang ada: Booking kumulatif, AR Outstanding, Tugas Terlambat org, Menunggu verifikasi, Tugas saya hari ini), jadi alur 'klik baris → /projects/{id}' tidak bisa diuji dari UI; endpoint /api/drilldown/projects sendiri OK dan href baris benar."]},
+      {"screen": "Unit 360 (/units/{id})", "issues": ["Breadcrumb topbar tetap menampilkan 'SIPRO / Beranda' saat berada di halaman unit (konteks modul tidak ikut berubah) — kosmetik."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_p92.py", "/app/test_reports/pytest/p92_results.xml"],
+  "action_items": [
+    "Ubah GET /api/drilldown/{key} agar kunci tak dikenal → 404 (validasi key sebelum cek izin).",
+    "Hilangkan duplikasi data-testid build-metric-late / build-metric-progress antara UnitBoardTab dan BuildMonitorPanel.",
+    "Samakan judul popup band 'hot' menjadi 'Lead Panas'.",
+    "Pertimbangkan agar kartu 'Sudah dijadwalkan'/'Rumah terjadwal' membuka daftar unit terjadwal (atau ubah label kartu) supaya angka kartu = isi popup.",
+    "Opsional: tambahkan kartu KPI 'Proyek' di Beranda bila alur drill-down proyek memang diinginkan di UI."
+  ],
+  "critical_code_review_comments": [
+    "kpi_drilldown._leads: saat idle_days diberikan bersama stage, klausa $nin stage diabaikan (q['stage'] ditimpa dirinya sendiri) — logika 'stage not in won/lost/closed' hanya berlaku bila stage kosong; sudah sesuai niat tapi baris `q['stage'] = ... if not stages else q['stage']` menyesatkan, sederhanakan.",
+    "kpi_drilldown._board memanggil bub.unit_rows(limit=0) untuk seluruh unit; aman untuk 18 unit, tapi tanpa batas atas bisa berat pada data besar — beri limit maksimum dan paginasi popup.",
+    "drilldown_router.leads_summary memanggil kd.drilldown 5x berurutan (5 query koleksi leads) tiap render halaman /leads; pertimbangkan agregasi tunggal untuk mengurangi latensi."
+  ],
+  "updated_files": ["/app/backend/tests/test_p92.py"],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "100% alur inti Fase 92 lulus; 1 masalah testability + 3 catatan desain"},
+  "seed_data_creation": "Tidak ada data baru dibuat; hanya baca (GET).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026, sales@sipro.co.id / Sipro#2026 (cookie login, tombol 'masuk cepat' di /login)",
+  "context_for_next_testing_agent": "test_p92.py mencakup seluruh kunci drilldown + RBAC sales. Endpoint papan unit yang benar adalah GET /api/build/board/units (bukan /api/build/unit-board) dan limit minimal 1. BuildMonitorPanel tersembunyi di balik toggle [data-testid=unit-board-extras-toggle] pada /build?hub=unit; testid kartunya bertabrakan dengan kartu papan unit (pakai .last). Empty-state dialog memakai testid 'finance-kpi-empty' (bukan finance-kpi-dialog-empty). Seed saat ini: 18 unit, 2 unit telat, 13 unit belum dijadwalkan, 48 lead (hot 17, won 0, sla 0).",
+  "rca_of_the_issue": "404 vs 403: routers/drilldown_router.drilldown memanggil kd.allowed() lebih dulu; allowed() mengembalikan False untuk kunci tak terdaftar sehingga selalu 403 dan cabang KeyError→404 tak pernah tercapai untuk kunci asing."
+}

@@ -1,0 +1,46 @@
+{
+  "summary": "Pengujian FRONTEND end-to-end Fase 75b–78 (SIPRO) + verifikasi API ringan. Cakupan: Config tab 'Biaya All-in' (5 komponen + 2 skema, pratinjau, tambah komponen & skema), Config tab 'Pencairan KPR' (BANK_STD, tambah skema 70/30, penolakan 60%), ReserveDialog/SPR dengan AllinSchemeField (pilih skema, pratinjau read-only + gembok, BPHTB 5%x(harga-NPOPTKP)=Rp28.500.000, reserve-costs-summary, hint hitung ulang, RBAC toggle manual), submit SPR menyimpan costs.scheme_code + components, Kontrak & Legal (CostBillingPanel: INB->KWB->titipan->penyaluran + guard over-disburse; beban developer via AP pada kontrak all-in cash), Pencairan KPR bertahap (tahapan 80/20, autofill nominal, date picker shadcn, toleransi ±1%, pembatalan berjurnal + AR kembali, RBAC sales), regresi tab Config lain + dialog Buat penawaran. 1 bug backend ditemukan (default is_active skema pencairan KPR). Tidak ada console error merah di seluruh alur.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/kpr-disbursement-schemes", "issue": "kpr_disburse.validate_scheme memakai payload.get('is_active', True), tetapi KprSchemeIn mengirim is_active=None saat tidak diisi → dokumen tersimpan dengan is_active=None sehingga skema TIDAK muncul di GET /api/kpr-disbursement-schemes (filter is_active=True) dan tidak bisa dipakai di kontrak. Terbukti: 4 skema 'UJI_80-20*' tersimpan is_active=None. UI Config tidak terpengaruh (mengirim is_active:true), tetapi skema hantu ini muncul di panel Config karena panel memakai include_inactive=true. Perbaikan: `is_active = payload.get('is_active') if payload.get('is_active') is not None else True`. Test regresi: tests/test_p78_ui_api.py::TestKprSchemeMaster::test_create_without_is_active_stays_active (saat ini FAIL by design)."},
+      {"endpoint": "GET /api/gl/journals", "issue": "Field nomor jurnal tidak ada pada respons (jj['number'] = None) — hanya memo/lines tersedia; perlu dipastikan nama field nomor jurnal konsisten untuk konsumsi UI/audit."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CostBillingPanel dialog", "issue": "Saat dialog ditutup (dlg=null) judul & deskripsi sempat berubah ke cabang fallback 'Catat beban / Tagihan AP ke notaris/BPN' selama animasi keluar, walau aksi yang dibuka adalah 'Salurkan titipan'. Kosmetik; simpan judul terakhir (mis. useRef/lastDlg) agar tidak berkedip.", "selector": "[data-testid=\"cost-disburse-btn\"] -> div[role=\"dialog\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Config -> Pencairan KPR", "issues": ["Kartu skema nonaktif (is_active=None dari bug backend) ikut tampil dengan opacity-50 tanpa label 'nonaktif' — sulit dibedakan; tambahkan badge status dan/atau tombol aktif/nonaktif."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p78_ui_api.py",
+    "/app/test_reports/pytest/iteration_126.xml",
+    "/app/backend/tests/seed_p78_ui.py"
+  ],
+  "action_items": [
+    "Perbaiki default is_active pada kpr_disburse.validate_scheme (POST /api/kpr-disbursement-schemes tanpa is_active menghasilkan skema tak terlihat) + bersihkan 4 dokumen 'UJI_80-20*' dengan is_active=None.",
+    "Opsional: pertahankan judul dialog CostBillingPanel saat animasi tutup agar tidak berkedip 'Catat beban'.",
+    "Opsional: tampilkan badge nonaktif pada kartu skema pencairan KPR di Config."
+  ],
+  "critical_code_review_comments": [
+    "kpr_disburse.validate_scheme: pola `payload.get('k', default)` tidak aman untuk model Pydantic Optional (None menimpa default). Terapkan normalisasi eksplisit untuk semua flag boolean.",
+    "routers/allin_router.py PUT /kpr-disbursement-schemes menyaring nilai None dari model_dump(exclude_unset=True) — konsisten, tetapi POST tidak; satukan helper normalisasi agar tidak divergen.",
+    "CostBillingPanel: satu dialog dipakai untuk 3 aksi (pay/disburse/expense) dan testid submit dibagi (cost-disburse-submit juga dipakai untuk expense) — menyulitkan asersi otomatis; pisahkan testid per aksi.",
+    "seed_p78_ui.py sebelumnya menghasilkan nomor telepon duplikat untuk dua kontrak (KeyError 'data') dan gagal menemukan skema 80/20 karena bug is_active; sudah dirapikan agar idempotent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p78_ui_api.py",
+    "/app/backend/tests/seed_p78_ui.py"
+  ],
+  "success_rate": {"backend": "88% (7/8 pytest API ringan; 1 gagal = bug is_active skema pencairan KPR)", "frontend": "100% (semua alur UI yang diminta lulus)"},
+  "seed_data_creation": "seed_p78_ui.py dijalankan: KPR Exclude -> customer e07a0ef4-b23a-4008-8c2f-721f8bf8f636 / contract 1cb254dc-eeb6-444c-a783-0e6d35789cc2 (skema pencairan 80/20; T1 sudah dicairkan KWT/2026/0029, T2 dicairkan lalu DIBATALKAN → AR outstanding kembali Rp130.000.000; invoice biaya INB/2026/0005 dibayar KWB/2026/0004 Rp45.500.000, Rp28.500.000 disalurkan ke BPN, sisa titipan Rp17.000.000). ALL-IN Cash -> customer f5aef70a-e989-4301-b1f5-890bc52f5872 / contract 56aeaa69-6996-4f69-a14e-5e674ce85b8b (beban BPHTB Rp28.500.000 dicatat via AP). Lead SPR uji bcd47e65-ed1f-410a-ba6a-482f02f7ef84 (deal 13b7dc6a-78b0-462f-a2ea-68da55235013 skema ALLIN_STD). Master baru: komponen UJI-BIAYA5367 (Rp1.000.000, aktif), skema all-in 'Skema Uji 5367', skema pencairan 'Uji 70-30 xxxx' + beberapa 'UJI_80-20*' (nonaktif akibat bug). Tidak ada add-on master berharga Rp0 yang ditinggalkan aktif.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / sales2@sipro.co.id (PIC lead uji) / finlead@sipro.co.id — password Sipro#2026",
+  "context_for_next_testing_agent": "Semua alur UI Fase 75b–78 sudah diuji lulus: Config Biaya All-in & Pencairan KPR (tambah komponen/skema + validasi 100%), SPR AllinSchemeField (skema, pratinjau read-only, hint recalc, RBAC toggle manual tidak tampil untuk sales), CostBillingPanel (INB→KWB→titipan→penyaluran + guard melebihi sisa titipan; beban developer AP), KprDisbursementBox (autofill tahap, date picker shadcn kpr-date-picker adalah tombol popover — jangan pakai selector input[type=date]; pilih hari dengan `table td button:not([disabled])`), pembatalan pencairan (tombol Batalkan hanya untuk finance_manager/super_admin/owner; alasan ≥10 huruf) dan AR pulih. Catatan penting: tombol 'Catat Pencairan' (contract-kpr-button-pencairan) HILANG setelah pencairan pertama; gunakan [data-testid=\"kpr-record-next-tranche\"] di dalam kpr-disbursement-box untuk tahap berikutnya. Login ulang di Playwright wajib localStorage.clear() dulu karena sesi persisten. Belum diuji: alur add-on berharga Rp0 + override manajer via UI (sengaja dilewati agar tidak meninggalkan add-on master Rp0 aktif yang merusak test P75) dan QuotationDetailSheet (hanya diverifikasi statis + dialog Buat penawaran).",
+  "rca_of_the_issue": "Bug is_active: KprSchemeIn mendefinisikan is_active: Optional[bool] = None; model_dump() menyertakan kunci dengan nilai None, sehingga payload.get('is_active', True) di kpr_disburse.validate_scheme mengembalikan None (bukan True). Dokumen tersimpan is_active=None → GET default memfilter {'is_active': True} → skema baru tidak terlihat/tidak bisa dipakai kontrak. Reproduksi: POST /api/kpr-disbursement-schemes tanpa field is_active lalu GET /api/kpr-disbursement-schemes. Mitigasi sementara: selalu kirim is_active:true (UI Config sudah begitu; seed_p78_ui.py sudah disesuaikan)."
+}

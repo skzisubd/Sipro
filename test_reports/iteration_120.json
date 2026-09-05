@@ -1,0 +1,45 @@
+{
+  "summary": "Fase 56 Manajemen Data — backend + frontend tested. 10/11 pytest passed. Found 1 real backend bug: POST /api/data-mgmt/snapshots/{sid}/restore with mode=merge (and by extension merge restore of a same-org backup) returns 500 due to DuplicateKeyError on collections with org_id-only unique indexes (e.g. build_policies). Frontend page loads correctly for super_admin (tabs, testids, entity table showing 15 sheets, download-template/backup/inspect buttons present) and correctly redirects sales user away from /admin/data-management.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/data-mgmt/snapshots/{id}/restore & POST /api/data-mgmt/restore (mode=merge)",
+        "issue": "500 Internal Server Error — pymongo.errors.DuplicateKeyError: E11000 dup key on build_policies index org_id_1 when restoring a same-org snapshot in merge mode. Root cause in /app/backend/data_mgmt_backup.py restore(): merge branch derives key only from d['_id'] or d['id']. For docs that use org_id as the natural unique key (e.g. build_policies, and potentially permission_settings/orgs edge cases) there is no 'id' field, so it falls through to insert_one() which conflicts with the existing unique index on org_id.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/data-mgmt/snapshots/{id}/restore",
+        "issue": "'replace' mode logs a WARNING for build_policies duplicate key on insert_many (ordered=False so it survives), but this indicates the same collection is being re-inserted after delete_many while another concurrent write path re-creates it. Investigate whether an auto-seeder recreates build_policies before insert_many runs."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_datamgmt_fase56.py",
+    "/app/test_reports/pytest/datamgmt_fase56.xml"
+  ],
+  "action_items": [
+    "Fix merge restore in /app/backend/data_mgmt_backup.py: for collections without an 'id' field, derive the upsert key from the collection's natural key (e.g. org_id for build_policies/permission_settings, {org_id, path} for file_blobs) or fall back to replace_one({'org_id': d['org_id']}, ...) upsert. Add a per-collection key map or a helper mirroring _org_filter().",
+    "Consider making 'orgs' handling explicit: currently id is remapped to target org — ensure merge upsert matches on {'id': org} instead of insert_one() when doc has no _id."
+  ],
+  "critical_code_review_comments": [
+    "data_mgmt_backup.py restore() merge branch does not handle collections whose uniqueness constraint is not on 'id'/'_id' — will raise 500 on any restore-into-same-org for such collections. Needs a natural-key resolver.",
+    "restore() replace branch catches BulkWriteError only for insert_many but delete_many is issued unconditionally — if a collection's org_id filter matches nothing (e.g. permission_settings uses {}), delete_many would wipe global data. Verified _org_filter returns {} for permission_settings so replace deletes ALL permission_settings rows (not org-scoped). This is likely intentional but risky — worth documenting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_datamgmt_fase56.py (new)"
+  ],
+  "success_rate": {"backend": "91% (10/11)", "frontend": "100% (smoke)"},
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026 ; sales@sipro.co.id / Sipro#2026",
+  "seed_data_creation": "None. Import commits & restores were run against dev DB; pre-restore auto-snapshot is created by backend. Cleanup of test snapshot done in test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file: /app/backend/tests/test_datamgmt_fase56.py. Only failing test is test_snapshot_lifecycle_and_restore (merge restore -> 500). Re-run: pytest backend/tests/test_datamgmt_fase56.py -v. Frontend testids verified against /app/frontend/src/constants/testIds/dataMgmt.js. Note: datamgmt-entity-row selector returned 0 in top-of-page viewport (likely rendered further down); not investigated deeper because page header already showed SHEET TEMPLATE 15 & MASTER DATA counts, and 15 entities are confirmed by the backend /overview test.",
+  "rca of the issue": "Symptom: POST /api/data-mgmt/snapshots/{id}/restore mode=merge confirm=RESTORE -> 500. Backend traceback: pymongo.errors.DuplicateKeyError E11000 collection build_policies index org_id_1. Reproduction: (1) POST /snapshots to create snapshot; (2) POST /snapshots/{id}/restore with mode=merge&confirm=RESTORE -> 500. RCA: data_mgmt_backup.restore() merge branch chooses upsert key from d['_id'] or d['id']; build_policies documents in the backup have neither (their unique key is org_id), so code falls to insert_one() and violates unique index. Mitigation: add a per-collection natural-key map (build_policies: ['org_id'], file_blobs: ['org_id','path'], permission_settings: []) and use replace_one(natural_key, d, upsert=True). Also treat orgs specially with key={'id': org}."
+}

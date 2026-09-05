@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only test of the rewritten MetricDetailDialog on /bi (superadmin login). Verified across all 5 hubs: dialog opens from every 'Rincian' button, 0 console errors in every run. SLS-06 PASS: hero 'Rp 382.500.000' + formula, donut with compact center 'Rp 382,5 jt / total', table Kategori/Nilai/Kontribusi with 55,6% / 44,4% / 0% / 0% inline bars and Total row 'Rp 382.500.000 / 100%', 'Bahan perhitungan' (Tagihan 4, Outstanding total 1.530.000.000), 'Sumber & cakupan data' (ar_invoices). SLS-01 PASS: both 'Pergerakan pada rentang ini' (area, 4 buckets) and 'Pecahan per kategori' (donut) charts + trend badge 'tetap vs sblm.'. Drill button bi-metric-detail-drill navigates to /finance?tab=ar&status=unpaid,partial and closes dialog; bi-metric-export href = <BACKEND>/api/analytics/export/SLS-06?date_from=2026-07-31&date_to=2026-08-29. Non-additive honesty PASS on SLS-02 and PRJ-01 (no Kontribusi column, no Total row, horizontal bars, 'Tiap kategori berdiri sendiri — satuannya tidak bisa dijumlahkan.'). Escape and X both close the dialog. Tabs smoke: eksekutif 15 cards, penjualan 18, marketing 7, proyek 12, tim 7; details opened on LED-01, LED-02, MKT-01, LED-09, PRJ-01, PRJ-02, USR-01, USR-02 — all render inputs + sources panels. One real defect found: the 'Pecahan per kategori' chart falls back to the SERIES data (not the breakdown) whenever the metric has a series AND the breakdown does not qualify for the donut (>6 rows or non-additive).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MetricDetailDialog + MetricChart", "issue": "Section titled 'Pecahan per kategori' renders the time series instead of the category breakdown when rows>6 (or non-additive) and metric.series exists. MetricChart kind='auto' resolves to series whenever metric.series.length>0 (MetricChart.js L62/L67), and the dialog passes kind={rows.length<=6 && additive ? 'pie' : 'auto'}. Reproduced on LED-01 (penjualan): 8 breakdown rows in the table, but the chart is a single-dot area chart of 1 bucket (2026-08) — visually empty and mislabeled; same on USR-01 (8 rows, neither pie nor bars rendered). Fix: add an explicit 'bar'/'category' kind and pass it instead of 'auto' for the breakdown chart.", "selector": "[data-testid=\"bi-metric-detail\"] [data-testid=\"bi-chart\"]", "priority": "HIGH"},
+      {"component": "MetricDetailDialog hero formula", "issue": "Sigma icon is rendered next to formulas whose text already starts with 'Σ', producing 'Σ Σ termin lewat tanggal & belum lunas' (SLS-06) and 'Σ Σ bobot langkah terverifikasi / Σ bobot' (PRJ-01). Same duplication on the cards. Strip a leading 'Σ'/'Σ ' from metric.formula when the icon is shown.", "selector": "[data-testid=\"bi-metric-detail\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bi → Rincian SLS-01 (Unit terjual, unit=count, value 3)", "issues": [
+        "Breakdown rows carry currency amounts (850.000.000 each) while the metric unit is a count, so the table formats them as bare numbers, adds Kontribusi 33,3% each and a Total row '2.550.000.000' — a total that has nothing to do with the headline value '3 unit'. Either label the value column with the breakdown's own unit or suppress Kontribusi/Total when the breakdown unit differs from the metric unit.",
+        "Donut center for SLS-01 shows '2.550.000.000' uncompacted (compact formatting only kicks in for currency/idr unit) — inconsistent with the SLS-06 'Rp 382,5 jt' center.",
+        "Three breakdown rows/legend entries share the identical label 'Tipe 45/90' (backend data), so table and donut legend are indistinguishable; consider appending unit code/id to the label."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH: give MetricChart an explicit category/bar kind and use it for the 'Pecahan per kategori' chart so it never falls back to the series (LED-01, USR-01 currently show a single-dot series chart under that title).",
+    "MED: SLS-01 breakdown is in currency while the metric is a count — hide Kontribusi/Total (or label the unit) when breakdown unit != metric unit; also use compact format for the donut center for non-currency units.",
+    "LOW: avoid the double 'Σ Σ' when metric.formula already starts with Σ (dialog hero and MetricCard).",
+    "CODE: in MetricDetailDialog, `total ?` is a truthiness check — an additive breakdown whose values sum to 0 silently loses the Kontribusi column and the Total row; use `total !== null`."
+  ],
+  "critical_code_review_comments": [
+    "MetricChart.js L62/L67: kind='auto' unconditionally prefers metric.series over metric.breakdown, which makes 'auto' unusable for a breakdown-specific chart slot — root cause of the LED-01/USR-01 wrong chart.",
+    "MetricDetailDialog.js L183/L211/L230: `total ?` should be `total !== null` (0-sum additive breakdowns lose Kontribusi/Total).",
+    "MetricDetailDialog table formats breakdown values with metric.unit; breakdown rows can be in a different unit (SLS-01), so % shares/Total can be meaningless."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/bi/MetricCard.js (added data-testid=bi-metric-card-detail + data-detail=<CODE> on the 'Rincian' button for test targeting)",
+    "/app/frontend/src/constants/testIds/bi.js (added cardDetail)"
+  ],
+  "success_rate": {"backend": "not tested", "frontend": "90%"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Use [data-detail=\"<METRIC_CODE>\"] (new testid bi-metric-card-detail) to open a metric's Rincian dialog directly; tab testids are tab-page-tab-<key>. Dialog testids: bi-metric-detail, bi-metric-detail-table/-row, bi-metric-detail-drill, bi-metric-export, bi-chart. Retest after the chart-kind fix: LED-01 and USR-01 must show a horizontal bar chart of their 8 categories under 'Pecahan per kategori' (currently a single-dot series chart). SLS-06/SLS-01/SLS-02/PRJ-01 behaviours already verified and passing; 0 console errors observed on all tabs.",
+  "rca_of_the_issue": "MetricDetailDialog renders the breakdown chart with kind={rows.length<=6 && additive ? 'pie' : 'auto'}. Inside MetricChart, kind='auto' resolves rows/isSeries from metric.series first (L62/L67), so any metric that has a series and >6 (or non-additive) breakdown rows draws the series again under the title 'Pecahan per kategori'. With a 1-bucket series (LED-01) the result is an almost empty chart with a single dot."
+}

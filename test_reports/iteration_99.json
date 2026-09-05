@@ -1,0 +1,28 @@
+{
+  "summary": "Fase 63 Agenda & Survey UI diuji end-to-end sesuai review_request. Semua alur inti PASS: halaman menampilkan kalender + agenda harian + tabel agenda dengan data; pencarian (agenda-table-search) memperbarui URL (?q=survey) dan menyaring hasil; klik header 'Waktu (WIB)' mengurutkan (URL: direction=desc); filter Rentang/Golongan/Jenis/Status tampil; refresh mempertahankan filter via useListQuery. Buat agenda INTERNAL tanpa lead berhasil (muncul di tabel & sales yang diundang bisa melihatnya). Buat agenda SALES tanpa memilih lead → toast penolakan 'wajib menyebut leadnya' (bukan error diam). Buat agenda SALES dengan lead terpilih berhasil. Tombol pensil (agenda-edit-button) membuka dialog, perubahan lokasi tersimpan. Klik baris membuka appointment-detail sheet. RBAC: pm@ dapat membuat agenda internal (tombol sales KIND disabled); finance@ dapat MELIHAT tabel namun tidak melihat 'Buat Agenda'/'Tambah di tanggal ini'; sales@ hanya melihat 4 agenda miliknya + 1 agenda internal tempat ia diundang sebagai peserta. Responsif 390x844: tidak ada overflow horizontal (scrollWidth == clientWidth). Data uji TEST_UI_* telah dibersihkan via MongoDB (2 dokumen dihapus).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AppointmentDetailSheet (agenda internal)", "issues": ["Deskripsi sheet berbunyi 'Janji temu & survey untuk lead.' dan menampilkan bagian 'Survey Lokasi' dengan tombol 'Mulai Survey' meskipun agenda bergolongan Internal (tanpa lead). Sebaiknya sembunyikan bagian survey & sesuaikan deskripsi untuk kind=internal — minor, tidak menghalangi pengujian Fase 63."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Opsional/minor) Pada AppointmentDetailSheet, sembunyikan bagian 'Survey Lokasi' dan sesuaikan salinan deskripsi jika appointment.kind === 'internal' (atau !lead_id)."
+  ],
+  "critical_code_review_comments": [
+    "AgendaTable klik header 'Waktu (WIB)' hanya mengubah 'direction' di URL tanpa mengeset 'sort=scheduled_at' secara eksplisit — masih benar karena default sort=scheduled_at, tetapi URL menjadi kurang deterministik saat kolom sort berpindah lalu kembali. Bisa diperbaiki untuk menulis parameter 'sort' eksplisit demi bookmarkability.",
+    "AgendaFormDialog: 'searchLeads' dipicu oleh useEffect yang bergantung pada leadQ tanpa debounce; setiap ketikan memicu GET /api/leads. Tambahkan debounce 250-300ms agar UX & load backend lebih baik.",
+    "AgendaTable kolom 'Peserta' memakai key='participants' bukan sortable — sudah benar; namun exportValue join('; ') hanya mengekspor email peserta tanpa label — pertimbangkan labelOf untuk CSV yang mudah dibaca."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% pada alur yang diuji"},
+  "test_credentials": "Sipro#2026 untuk semua akun demo (owner/pm/finance/sales @sipro.co.id)",
+  "seed_data_creation": "Membuat 2 agenda uji (TEST_UI_Rapat mingguan divisi proyek + TEST_UI_Sales survey) selama pengujian; keduanya sudah DIHAPUS dari db.appointments.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Semua data-testid Fase 63 (APPTS.*) sudah wired dengan benar. Untuk verifikasi cepat: login owner → /appointments → cek agenda-table & agenda-create-button. Filter di URL dipersist. Peserta yg diundang bisa melihat agenda internal (RBAC via _appt_scope backend).",
+  "rca of the issue": "Tidak ada bug fungsional ditemukan pada Fase 63."
+}

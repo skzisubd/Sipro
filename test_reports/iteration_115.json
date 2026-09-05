@@ -1,0 +1,29 @@
+{
+  "summary": "P115 retest: (1) TopBar bell summary dropdown, (2) klik baris Perizinan → dialog detail + ubah status, (3) dialog kelola 'Jenis izin' + merge ke dropdown Tambah izin, (4) backend permit_type dinamis / setting permit.types_custom / POST-DELETE permit type kustom, (5) link 'Atur skema' komisi (owner tampil, sales tidak), (6) regresi tombol Perpanjang (stopPropagation) & halaman /notifications. Backend 5/5 pytest lulus; semua flow frontend lulus. Tidak ada bug fungsional baru ditemukan.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Unit → Dokumen & Izin → dialog Perpanjang izin", "issues": ["Field 'Masa berlaku baru' memakai input tanggal NATIVE browser (placeholder mm/dd/yyyy, format US) alih-alih komponen kalender shadcn — inkonsisten untuk produk berbahasa Indonesia. Temuan bawaan (bukan dari sesi ini), prioritas rendah."]},
+      {"screen": "Beranda → dropdown lonceng", "issues": ["Dropdown 360px menutupi kolom kanan (kartu Monitoring Unit) saat terbuka — perilaku wajar untuk popover, hanya catatan visual."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p115_permit_types_notif.py",
+    "/app/test_reports/pytest/p115.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BellSummary.load() menelan semua error (catch { /* ignore */ }): jika GET /api/notifications gagal, dropdown selamanya menampilkan 'Memuat ringkasan…' tanpa pesan error. Tambahkan state error kecil (non-blocking).",
+    "PermitTypesDialog: penghapusan jenis kustom hanya sebatas daftar pilihan (sudah dijelaskan di deskripsi) — pertimbangkan peringatan bila jenis yang dihapus masih dipakai izin aktif agar dropdown tidak kehilangan nilai yang terpakai (saat ini tertutupi oleh dynamic=true, jadi bukan bug)."
+  ],
+  "updated_files": ["/app/backend/tests/test_p115_permit_types_notif.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Sementara: setting permit.types_custom diisi ['UJI_X']/['IPPT'] lalu DIRESET ke []; 1 izin uji 'TEST_p115 izin kustom' dibuat lalu DIHAPUS; status izin AMDAL unit A-01 diubah saat uji UI lalu DIPULIHKAN ke in_progress via POST /api/permits/{id}/status. Verifikasi akhir: permit.types_custom=[] dan reference permit_type kembali 9 pilihan bawaan.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / owner@sipro.co.id / sales@sipro.co.id — Sipro#2026",
+  "context_for_next_testing_agent": "Bukti uji: bell badge '9+', ringkasan '19 belum dibaca · 5 perlu tindakan', 4 chip kategori, 6 baris; klik baris → navigasi /finance; tombol notif-bell-open-page → /notifications (0 error). Dialog detail izin menampilkan Status & kesehatan, Masa berlaku, Nomor acuan, Instansi, Proyek, Tenggat; ubah status → toast 'Status izin diperbarui' dan baris panel ikut berubah setelah reload. Dialog Jenis izin: tambah 'IPPT' → toast simpan → muncul di dropdown permit-form-type (['KRK','IMB','PBG','SLF','AMDAL','ANDALALIN','Pengesahan Site Plan','Addendum','Lainnya','IPPT','Nilai baru…']) → dihapus kembali. Tombol Perpanjang membuka permit-renew-dialog TANPA membuka permit-detail-dialog. Catatan teknis: GET /api/reference/{group} berbentuk {data:{label,strict,dynamic,options:[{value,label}]}}; status izin valid = not_started/in_progress/submitted/approved/rejected/expired (bukan 'terbit'). Hindari menjalankan test yang menyetel permit.types_custom secara paralel di worker berbeda (balapan setting global).",
+  "rca_of_the_issue": "Tidak ada isu produk. 3 kegagalan awal pytest murni asumsi test saya sendiri (bentuk respons reference + nilai status tidak valid + balapan setting antar worker xdist); test sudah dikoreksi dan kini 5/5 lulus."
+}

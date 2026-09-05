@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 111 — frontend E2E of the new two-dropdown related-record picker in CreateTaskDialog ('Tugas Baru') plus 2 backend spot-checks. All 6 requested scenarios PASS: type select exposes exactly the 6 expected options; record select is disabled with placeholder 'Pilih jenis dulu' until a type is chosen; Unit/Deal/Customer/Proyek/Lead dropdowns all lazy-load real records with correct label formats; create-with-unit and create-with-customer succeed with 'Tugas dibuat' toast and the relation is visible in the task list ('To-do · unit', 'To-do · customer'); validation guard blocks submit with toast 'Pilih record terkaitnya dari daftar.'; switching back to 'Tanpa kaitan' clears/disables the record select and submit succeeds without relation; jobdesk SM-10 prefill (title/type/priority + rule note) still works and SM-10 + Lead relation creates 200. Backend pytest suite (8 tests) 100% pass: customer relation persisted, fake customer id -> 404, SM-10 + lead -> 200, all 5 dropdown source endpoints return {data:[...]}. Only gap found: the task DETAIL SHEET does not display the related entity at all (no name, no 'Buka halaman kerja' link) for non-lead relations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TaskDetailSheet", "issue": "Related entity is NOT shown in the detail sheet. For a task linked to a unit/customer/deal/project, the 'Aturan jobdesk' card shows no relation row and t.link is null so the [data-testid='task-link-button'] ('Buka halaman kerja') never renders — user cannot see or open the linked record. Only the list row hints the raw type string ('To-do · unit'), never the record name/code.", "selector": "[data-testid='task-detail-sheet']", "priority": "MEDIUM"},
+      {"component": "TaskDetailSheet header", "issue": "SheetDescription renders a dangling '- ·' for ad-hoc tasks with no division and no due date (observed literally '- ·' under the title). Should hide empty segments.", "selector": "[data-testid='task-detail-sheet'] header", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p111_task_relations.py",
+    "/app/test_reports/pytest/p111.xml"
+  ],
+  "action_items": [
+    "Show the related record in TaskDetailSheet (type label + record name/code) and provide a navigation link for unit/customer/deal/project relations (backend detail response currently returns link=null for these types).",
+    "Optional: hide empty division/due segments in the detail-sheet description to avoid the '- ·' artifact."
+  ],
+  "critical_code_review_comments": [
+    "CreateTaskDialog: record labels use cfg.toLabel(r) inside SelectContent; if form.rel_type is cleared while options are cached, cfg could be undefined — currently safe because the map source is keyed by rel_type, but consider a null-guard.",
+    "CreateTaskDialog lazy loader caches per type for the dialog's lifetime (relRecords never invalidated), so records created elsewhere won't appear until page reload — acceptable, but worth a refresh on dialog open.",
+    "Dropdown endpoints are hard-limited (leads 100, units 200, customers 100). With growing data users cannot reach older records; a searchable combobox would scale better."
+  ],
+  "updated_files": ["/app/backend/tests/test_p111_task_relations.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (core flows); 1 medium gap in detail-sheet relation display"},
+  "seed_data_creation": "Created and then deleted 8 tasks titled TEST_P111* (via API + UI). DB cleaned; no seeded data modified.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "Login testids: login-email-input / login-password-input / login-submit-button. /tasks table rows use [data-testid='task-row']; the detail sheet opens by clicking the ROW itself — [data-testid='task-open-button'] exists only in TaskCard (kanban/board), NOT in the table view. Radix Select: click trigger, wait 300-500ms, then click [role='option']. Customer labels show name only because seeded customers mostly have email=null (data, not a bug). Related-record dropdown counts observed: leads 97, units 18, deals 4, customers 8, projects 1.",
+  "rca_of_the_issue": "Detail-sheet gap: TaskDetailSheet.js only references related_entity_* for the lead WA-manual block (line 91) and renders the link button solely when backend supplies t.link; no generic related-entity row exists, so newly supported unit/customer/deal/project relations are invisible after creation."
+}

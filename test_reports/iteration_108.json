@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only retest of SIPRO BI (/bi) enriched MetricDetailDialog fixes. Logged in as superadmin, verified LED-01 (horizontal bar breakdown of 8 sources, Kontribusi column, Total 37 / 100%), USR-01 (composition donut of 6 categories with Kontribusi + Total 38 — NOT a series chart), SLS-01 (dual charts: series area + category bars; NO Kontribusi column, NO Total row, description 'Tiap kategori berdiri sendiri — satuannya tidak bisa dijumlahkan.'), SLS-06 regression (donut center compact 'Rp 382,5 jt', Kontribusi 55,6% / 44,4%, Total Rp 382.500.000 / 100%), and formula rendering (no duplicated Σ on cards or dialog hero; only legitimate mid-formula Σ remains, e.g. PRJ-01 'bobot langkah terverifikasi / Σ bobot'). Smoke: 3 metrics x 5 hubs (eksekutif, penjualan, marketing, proyek, tim) = 15 dialogs opened, all closed via Escape (X button verified on USR-01), 0 console errors / 0 page errors. All 6 requested items PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SLS-01 detail dialog — 'Pecahan per kategori' bars", "issues": ["All 3 breakdown rows share the identical label 'Tipe 45/90', so the horizontal bars/table rows are indistinguishable from one another (data/labeling, not chart logic). Consider disambiguating with unit code / cluster / block in the breakdown label."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_108.json"],
+  "action_items": ["Optional (LOW): make SLS-01 breakdown labels unique (currently 3x 'Tipe 45/90')."],
+  "critical_code_review_comments": ["MetricDetailDialog kind={rows.length <= 6 && showShare ? 'pie' : 'bar'} verified: never 'auto', so the breakdown panel can no longer render series data. unitMismatch guard correctly gates showShare/showTotal for SLS-01 (value=3 units vs Rp breakdown). No defects found in the 4 fix files."],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "100% (6/6 targeted checks + 15/15 smoke dialogs)"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "superadmin@sipro.co.id / Sipro#2026",
+  "context_for_next_testing_agent": "BI tabs are: eksekutif, penjualan, marketing, proyek, tim, kamus (data-testid='tab-page-tab-<key>'); there is no 'keuangan' tab. Dialogs open via [data-detail='<CODE>'], dialog root [data-testid='bi-metric-detail'], rows [data-testid='bi-metric-detail-row'], charts [data-testid='bi-chart']. Table headers render uppercase via CSS but inner_text returns 'KONTRIBUSI' — compare case-insensitively. Chart type detection: .recharts-bar-rectangle / .recharts-area / .recharts-pie-sector. Note: kind='bar' with <=6 rows and additive units renders a DONUT (pie) by design — that is expected, not a series-chart regression. Environment restarted once mid-run (transient Cloudflare 502); retry after supervisorctl status shows RUNNING.",
+  "rca_of_the_issue": "Iteration_107's defect (breakdown panel drawing series data for LED-01/USR-01) is resolved: MetricChart now receives an explicit 'pie'/'bar' kind, so isSeries is false for the breakdown panel and rows come from metric.breakdown. Verified visually: LED-01 renders 8 horizontal bars, USR-01 a 6-slice donut."
+}

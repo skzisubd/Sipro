@@ -1,0 +1,40 @@
+{
+  "summary": "Fase 69 follow-up (Detail Harga Deal + Multi Proyek Aturan + BI PRC-01..04) diuji end-to-end. Backend pytest: 11 passed, 1 skipped (skip karena hanya 1 proyek seeded — filter cross-project tidak bisa dites, tapi CRUD multi-select tervalidasi). Semua endpoint PRC-01..04 200, tercantum di catalog /api/analytics/metrics, dashboard sales/funnel dan executive. PRC-01 nilai bertambah tepat sebesar diskon deal baru dan breakdown memuat proyeknya; PRC-04 naik saat reserve+kupon, turun saat cancel (kupon dilepas). POST /api/pricing/discount-schemes menerima applies_project_ids + applies_unit_types (array). Frontend (manager): Lead 360 /leads/…17c5 tab 'Unit & SPR' → 3 deal-pricing-button muncul, klik → deal-pricing-sheet berisi Rincian harga lengkap (Promo · Promo peluncuran -Rp2jt, Kupon · SIPRO2026 -Rp5jt, Total potongan -Rp7jt · 0.82%, tabel termin Σ=Rp843jt, origin='Reservasi langsung'). Unit 360 /units/…5986 tab Penjualan menampilkan kolom 'Potongan' + 3 tombol Rincian harga → sheet terbuka. Daftar deal /customers?hub=deal (toggle 'Deal') → 8 baris deal, tombol 'Rincian harga' di setiap baris, klik → sheet terbuka TANPA navigasi ke unit (row click ter-stop). Frontend (owner): /config pricing→discount, dialog PricingRule menampilkan MultiCheckList project+unit-type dengan header 'Semua proyek'→'1 dipilih' + link 'Pilih semua', item testid `${listTestId}-${value}`; submit membuat baris 'TEST-UI-P117' dgn 'Berlaku untuk' menampilkan nama proyek + 'Tipe: KAVLING'; Edit dialog kembali dgn checkbox pre-checked (data-state='checked'). /bi hub=penjualan (period Semua) merender 4 kartu PRC (Potongan diberikan per proyek/per sales, Komposisi potongan, Pemakaian kupon); /bi hub=eksekutif merender kartu PRC-01 dengan nilai Rp 7.000.000. Cleanup: TEST-UI-P117 di-set inactive, deal test dibatalkan.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "seed data", "issue": "Hanya 1 proyek seeded (Cluster Asri Blok A) — uji filter cross-project untuk aturan multi-proyek tidak dapat dijalankan penuh; tes CRUD multi-select tetap lulus."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bi", "issues": ["Console warning React 'Encountered two children with the same key' muncul 2× saat me-render dashboard BI (bukan blocker; kemungkinan key duplikat di list metrik/breakdown). Bukan bug fatal tapi perlu ditinjau."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p117_pricing_metrics.py",
+    "/app/test_reports/pytest/p117.xml"
+  ],
+  "action_items": [
+    "(Opsional) Perbaiki key duplikat pada rendering dashboards BI untuk menghilangkan console warning React.",
+    "(Opsional) Tambahkan seed proyek kedua (mis. 'Cluster Asri Blok B') di data demo agar tes filter cross-project pada skema diskon multi-proyek bisa dijalankan otomatis."
+  ],
+  "critical_code_review_comments": [
+    "metrics/pricing.py `_deals` menyaring by reserved_at/created_at di Python (memuat semua deal aktif dulu, lalu filter). Untuk skala besar ini menyimpan >20k dok — lebih baik push filter ke query Mongo (range) supaya index terpakai. Saat ini organisasi kecil, dapat ditunda.",
+    "PRC-01 series bulanan menggunakan `month_of(reserved_at or created_at)` — pastikan konsisten dengan absorpsi/booking value (SLS-*) yang juga memakai reserved_at, agar drilldown yang menuju /customers?hub=deal tidak menampilkan deal yang tidak berkontribusi ke periode.",
+    "Frontend MultiCheckList: header 'N dipilih' + 'Pilih semua' bekerja baik; sarankan menambahkan aria-live pada perubahan header supaya screen reader menangkap saat user mengubah pilihan.",
+    "DealPricingSheet menampilkan 'Simulasi KPR — Belum ada data (tidak boleh dikarang)' meskipun deal reservasi langsung tanpa KPR; label bisa membingungkan pembeli cash. Pertimbangkan menyembunyikan blok simulasi KPR bila payment scheme snapshot tidak mengandung fase KPR."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p117_pricing_metrics.py"
+  ],
+  "success_rate": {"backend": "100% (11/11 non-skipped)", "frontend": "100% pada seluruh alur diuji"},
+  "test_credentials": "owner@sipro.co.id / manager@sipro.co.id — Sipro#2026",
+  "seed_data_creation": "Tes membuat TEST-MULTI-P117 (backend, dinonaktifkan) dan TEST-UI-P117 (frontend, dinonaktifkan). Deal test dari PRC-01/04 dibatalkan (unit kembali available, kupon dilepas). Demo deal A-03 Bapak Rudi Hartono TIDAK diubah.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "File regresi baru: /app/backend/tests/test_p117_pricing_metrics.py. Bila menambahkan proyek kedua di seed, test_options_filters_by_project_and_unit_type akan otomatis berjalan (tidak lagi skipped). Test_p69_pricing.py sebelumnya masih valid. Testid frontend Fase 69 (DEAL_PRICING, PRICING, MultiCheckList) terkonfirmasi konsisten dengan implementasi. Deal demo yang ada (unit A-03, Rudi Hartono, potongan Rp7jt via PROMO-LAUNCH + SIPRO2026) sudah dipakai oleh PRC-01 snapshot; jangan dibatalkan.",
+  "rca of the issue": "n/a — tidak ada bug fungsional. Hanya warning React (duplicate key) dan gap seed data (1 proyek) yang membatasi coverage tes cross-project."
+}
