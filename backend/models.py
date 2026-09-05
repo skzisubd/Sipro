@@ -11,13 +11,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RegisterRequest(BaseModel):
-    name: str
-    email: EmailStr
-    password: str = Field(min_length=6)
-    role: str = "sales"
-
-
 class UserCreate(BaseModel):
     name: str
     email: EmailStr

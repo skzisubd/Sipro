@@ -53,7 +53,7 @@ function sessionState(err) {
 function isAuthRoute(url) {
   const u = String(url || "");
   return u.includes("/auth/login") || u.includes("/auth/refresh")
-    || u.includes("/auth/register") || u.includes("/portal/auth/");
+    || u.includes("/portal/auth/");
 }
 
 function clearSession() {

@@ -11,7 +11,7 @@ from security import (
     session_error, apply_org_context, ACCESS_TTL, REFRESH_TTL, SESSION_REVOKED,
 )
 from rbac import ALL_ROLES, effective_permissions
-from models import LoginRequest, RegisterRequest
+from models import LoginRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -87,24 +87,8 @@ async def login(payload: LoginRequest, response: Response):
             "token_type": "bearer"}
 
 
-@router.post("/register")
-async def register(payload: RegisterRequest, response: Response):
-    email = payload.email.lower()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
-    role = payload.role if payload.role in ALL_ROLES else "sales"
-    ts = now_iso()
-    user = {
-        "id": new_id(), "org_id": ORG_ID, "name": payload.name, "email": email,
-        "role": role, "password_hash": hash_password(payload.password), "phone": None,
-        "is_active": True, "created_at": ts, "updated_at": ts,
-    }
-    await db.users.insert_one(user)
-    access = create_access_token(user["id"], user["email"], user["role"])
-    refresh = create_refresh_token(user["id"])
-    _set_cookies(response, access, refresh)
-    return {"data": await session_payload(user), "access_token": access,
-            "token_type": "bearer"}
+# Fase 94A — `POST /auth/register` DIHAPUS: endpoint publik ini menerima `role` dari payload
+# (termasuk super_admin). Pembuatan pengguna hanya lewat `POST /admin/users` (users:create).
 
 
 @router.get("/me")
